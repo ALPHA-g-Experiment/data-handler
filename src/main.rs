@@ -1,9 +1,13 @@
+use anyhow::{Context, Result};
 use askama_axum::Template;
 use axum::{extract, routing::get, Router};
 use clap::Parser;
-use tokio::sync::OnceCell;
+use std::sync::OnceLock;
 
-static MIDAS_DATA_PATH: OnceCell<std::path::PathBuf> = OnceCell::const_new();
+mod core_commands;
+
+static MIDAS_DATA_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
+static CACHE_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
 
 #[derive(Parser)]
 struct Args {
@@ -16,16 +20,32 @@ struct Args {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<()> {
     let args = Args::parse();
-    MIDAS_DATA_PATH.set(args.data_dir).unwrap();
+    MIDAS_DATA_PATH
+        .set(args.data_dir)
+        .expect("failed to set MIDAS_DATA_PATH");
+
+    let project_dirs = directories::ProjectDirs::from("com", "ALPHA", "ALPHA-g-Data-Handler")
+        .context("failed to get project directories")?;
+    CACHE_PATH
+        .set(project_dirs.cache_dir().to_path_buf())
+        .expect("failed to set CACHE_PATH");
+
+    println!("Cache path: {}", CACHE_PATH.get().unwrap().display());
 
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/:run_number", get(run_info));
 
-    let listener = tokio::net::TcpListener::bind(args.addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    let listener = tokio::net::TcpListener::bind(args.addr)
+        .await
+        .context("failed to create tcp listener")?;
+    axum::serve(listener, app)
+        .await
+        .context("failed to start server")?;
+
+    Ok(())
 }
 
 #[derive(Template)]
