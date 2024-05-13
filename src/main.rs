@@ -1,4 +1,4 @@
-use anyhow::Context;
+use anyhow::{ensure, Context};
 use askama_axum::Template;
 use axum::extract::{self, State};
 use axum::response::{IntoResponse, Response};
@@ -131,21 +131,36 @@ async fn get_core_output(
     let cache_path = CACHE_PATH.get().unwrap().join(run_number.to_string());
     let output_path = cache_path.join(command.output(run_number));
 
-    fs::create_dir_all(&cache_path).await.with_context(|| {
-        format!(
-            "failed to create cache directory `{}`",
-            cache_path.display()
-        )
-    })?;
-
     match fs::read(&output_path).await {
         Ok(contents) => Ok(contents),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Err(e).context("failed here"),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            let mid_files = get_midas_files(run_number).await.with_context(|| {
+                format!("failed to get MIDAS files for run number `{run_number}`")
+            })?;
+            ensure!(
+                !mid_files.is_empty(),
+                "no MIDAS files found for run number `{run_number}`"
+            );
+
+            let mut cmd = command.command();
+            match command {
+                CoreCommand::InitialOdb => cmd.arg(mid_files.first().unwrap()),
+                CoreCommand::FinalOdb => cmd.arg(mid_files.last().unwrap()),
+                _ => cmd.args(mid_files),
+            };
+            cmd.current_dir(&cache_path);
+
+            fs::create_dir_all(&cache_path).await.with_context(|| {
+                format!("failed to create directory `{}`", cache_path.display())
+            })?;
+            cmd.status().await.unwrap();
+            Ok(fs::read(&output_path).await.unwrap())
+        }
         Err(e) => Err(e).with_context(|| format!("failed to read `{}`", output_path.display())),
     }
 }
 
-async fn get_run_files(run_number: u32) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
+async fn get_midas_files(run_number: u32) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
     let prefix = format!("run{run_number:05}sub");
 
     let mut run_files = Vec::new();
