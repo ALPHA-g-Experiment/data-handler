@@ -4,13 +4,13 @@ use axum::extract::{self, State};
 use axum::response::{IntoResponse, Response};
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
-use core_commands::CoreCommand;
+use cmd::{CmdActorHandle, CoreCommand};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
-use tokio::{fs, process::Child};
+use tokio::fs;
 
-mod core_commands;
+mod cmd;
 
 static MIDAS_DATA_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
 static CACHE_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
@@ -27,7 +27,7 @@ struct Args {
 
 #[derive(Default)]
 struct AppState {
-    childs: tokio::sync::Mutex<HashMap<(u32, CoreCommand), Child>>,
+    running_processes: tokio::sync::Mutex<HashMap<(u32, CoreCommand), CmdActorHandle>>,
 }
 
 struct AppError(anyhow::Error);
@@ -93,9 +93,10 @@ async fn run_info(
     State(app_state): State<Arc<AppState>>,
     extract::Path(run_number): extract::Path<u32>,
 ) -> Result<RunInfoTemplate, AppError> {
-    let contents = get_core_output(CoreCommand::FinalOdb, run_number, app_state)
+    let output = run_core_command(CoreCommand::FinalOdb, run_number, app_state)
         .await
         .with_context(|| format!("failed to get final ODB for run number `{run_number}`"))?;
+    let contents = fs::read(output).await.unwrap();
 
     let start_index = contents.iter().position(|&c| c == b'{').with_context(|| {
         format!("failed to find JSON data in final ODB for run number `{run_number}`")
@@ -123,17 +124,28 @@ async fn run_info(
     })
 }
 
-async fn get_core_output(
+async fn run_core_command(
     command: CoreCommand,
     run_number: u32,
     app_state: Arc<AppState>,
-) -> Result<Vec<u8>, anyhow::Error> {
+) -> Result<std::path::PathBuf, anyhow::Error> {
     let cache_path = CACHE_PATH.get().unwrap().join(run_number.to_string());
     let output_path = cache_path.join(command.output(run_number));
 
-    match fs::read(&output_path).await {
-        Ok(contents) => Ok(contents),
-        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+    let mut map = app_state.running_processes.lock().await;
+    match (map.get(&(run_number, command)), output_path.is_file()) {
+        (Some(handle), _) => {
+            let handle = handle.clone();
+            std::mem::drop(map);
+
+            let status = handle.wait().await?;
+            ensure!(
+                status.success(),
+                "failed to run `{command:?}` for run number `{run_number}`"
+            );
+            Ok(output_path)
+        }
+        (None, false) => {
             let mid_files = get_midas_files(run_number).await.with_context(|| {
                 format!("failed to get MIDAS files for run number `{run_number}`")
             })?;
@@ -142,21 +154,36 @@ async fn get_core_output(
                 "no MIDAS files found for run number `{run_number}`"
             );
 
-            let mut cmd = command.command();
+            let mut cmd = command.into_command();
             match command {
                 CoreCommand::InitialOdb => cmd.arg(mid_files.first().unwrap()),
                 CoreCommand::FinalOdb => cmd.arg(mid_files.last().unwrap()),
-                _ => cmd.args(mid_files),
+                CoreCommand::ChronoboxTimestamps
+                | CoreCommand::Sequencer
+                | CoreCommand::TrgScalers
+                | CoreCommand::Vertices => cmd.args(mid_files),
             };
-            cmd.current_dir(&cache_path);
-
             fs::create_dir_all(&cache_path).await.with_context(|| {
                 format!("failed to create directory `{}`", cache_path.display())
             })?;
-            cmd.status().await.unwrap();
-            Ok(fs::read(&output_path).await.unwrap())
+            cmd.current_dir(&cache_path);
+
+            let cmd_handle = cmd::CmdActorHandle::new(cmd).with_context(|| {
+                format!("failed to create `{command:?}` handle for run number `{run_number}`")
+            })?;
+            map.insert((run_number, command), cmd_handle.clone());
+            std::mem::drop(map);
+
+            let status = cmd_handle.wait().await;
+            let mut map = app_state.running_processes.lock().await;
+            map.remove(&(run_number, command));
+            ensure!(
+                status?.success(),
+                "failed to run `{command:?}` for run number `{run_number}`"
+            );
+            Ok(output_path)
         }
-        Err(e) => Err(e).with_context(|| format!("failed to read `{}`", output_path.display())),
+        (None, true) => Ok(output_path),
     }
 }
 
