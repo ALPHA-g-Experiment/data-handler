@@ -1,10 +1,11 @@
 use anyhow::{ensure, Context};
 use askama_axum::Template;
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{self, State};
 use axum::response::{IntoResponse, Response};
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
-use cmd::{CmdActorHandle, CoreCommand};
+use cmd::{spawn_core_command, CmdActorHandle, CoreBin, CoreCmd};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
@@ -27,7 +28,7 @@ struct Args {
 
 #[derive(Default)]
 struct AppState {
-    running_processes: tokio::sync::Mutex<HashMap<(u32, CoreCommand), CmdActorHandle>>,
+    processes: tokio::sync::Mutex<HashMap<CoreCmd, CmdActorHandle>>,
 }
 
 struct AppError(anyhow::Error);
@@ -51,6 +52,20 @@ where
     }
 }
 
+struct ClientMessage {
+    service: String,
+    context: String,
+    request: ClientRequest,
+}
+
+enum ClientRequest {
+    ChronoboxCsv { run_number: u32 },
+    InitialOdb { run_number: u32 },
+    SequencerEvents { run_number: u32 },
+    TrgScalersCsv { run_number: u32 },
+    VerticesCsv { run_number: u32 },
+}
+
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
@@ -68,6 +83,7 @@ async fn main() -> Result<(), anyhow::Error> {
     let app = Router::new()
         .route("/", get(|| async { "Hello, World!" }))
         .route("/:run_number", get(run_info))
+        .route("/ws", get(websocket_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(args.addr)
@@ -89,126 +105,117 @@ struct RunInfoTemplate {
     operator_comment: String,
 }
 
+impl RunInfoTemplate {
+    fn try_from_odb(odb: &Value) -> Result<Self, anyhow::Error> {
+        let run_number = odb
+            .pointer("/Runinfo/Run number")
+            .and_then(Value::as_u64)
+            .context("failed to get run number")?
+            .try_into()
+            .context("failed to convert run number to u32")?;
+        let start_time = odb
+            .pointer("/Runinfo/Start time binary")
+            .and_then(Value::as_str)
+            .and_then(|s| s.strip_prefix("0x"))
+            .context("failed to get binary start time")
+            .and_then(|s| i64::from_str_radix(s, 16).map_err(|e| anyhow::anyhow!(e)))
+            .context("failed to parse start time as u64")?;
+        let stop_time = odb
+            .pointer("/Runinfo/Stop time binary")
+            .and_then(Value::as_str)
+            .and_then(|s| s.strip_prefix("0x"))
+            .context("failed to get binary stop time")
+            .and_then(|s| i64::from_str_radix(s, 16).map_err(|e| anyhow::anyhow!(e)))
+            .context("failed to parse stop time as u64")?;
+        ensure!(start_time < stop_time, "start time after stop time");
+        let operator_comment = odb
+            .pointer("/Experiment/Edit on start/Comment")
+            .and_then(Value::as_str)
+            .context("failed to get comment")?
+            .to_string();
+
+        let start_time = time::OffsetDateTime::from_unix_timestamp(start_time)
+            .context("failed to convert start time to `OffsetDateTime`")?
+            .format(&time::format_description::well_known::Rfc2822)
+            .context("failed to format start time")?;
+        let stop_time = time::OffsetDateTime::from_unix_timestamp(stop_time)
+            .context("failed to convert stop time to `OffsetDateTime`")?
+            .format(&time::format_description::well_known::Rfc2822)
+            .context("failed to format stop time")?;
+
+        Ok(Self {
+            run_number,
+            start_time,
+            stop_time,
+            operator_comment,
+        })
+    }
+}
+
 async fn run_info(
     State(app_state): State<Arc<AppState>>,
     extract::Path(run_number): extract::Path<u32>,
 ) -> Result<RunInfoTemplate, AppError> {
-    let output = run_core_command(CoreCommand::FinalOdb, run_number, app_state)
+    let working_dir = CACHE_PATH.get().unwrap().join(run_number.to_string());
+    fs::create_dir_all(&working_dir)
         .await
-        .with_context(|| format!("failed to get final ODB for run number `{run_number}`"))?;
-    let contents = fs::read(output).await.unwrap();
+        .with_context(|| format!("failed to create `{}`", working_dir.display()))?;
+
+    let cmd = CoreCmd {
+        run_number,
+        bin: CoreBin::FinalOdb,
+    };
+    if let Some(handle) = spawn_core_command(
+        cmd,
+        MIDAS_DATA_PATH.get().unwrap(),
+        &working_dir,
+        app_state.clone(),
+    )
+    .await
+    .with_context(|| format!("failed to spawn `{cmd:?}`"))?
+    {
+        let status = handle
+            .wait()
+            .await
+            .with_context(|| format!("failed to wait for `{cmd:?}`"));
+        let mut processes = app_state.processes.lock().await;
+        processes.remove(&cmd);
+        let status = status?;
+        if !status.success() {
+            return Err(anyhow::anyhow!("`{cmd:?}` failed with `{status}`").into());
+        }
+    }
+
+    let expected_output = working_dir.join(cmd.output());
+    let contents = fs::read(&expected_output)
+        .await
+        .with_context(|| format!("failed to read `{}`", expected_output.display()))?;
 
     let start_index = contents.iter().position(|&c| c == b'{').with_context(|| {
         format!("failed to find JSON data in final ODB for run number `{run_number}`")
     })?;
     let odb = serde_json::from_slice::<Value>(&contents[start_index..])
         .with_context(|| format!("failed to parse final ODB for run number `{run_number}`"))?;
+    let template = RunInfoTemplate::try_from_odb(&odb).with_context(|| {
+        format!("failed to create `RunInfo` from ODB for run number `{run_number}`")
+    })?;
 
-    Ok(RunInfoTemplate {
-        run_number,
-        start_time: odb
-            .pointer("/Runinfo/Start time")
-            .and_then(Value::as_str)
-            .with_context(|| format!("failed to get start time for run number `{run_number}`"))?
-            .to_string(),
-        stop_time: odb
-            .pointer("/Runinfo/Stop time")
-            .and_then(Value::as_str)
-            .with_context(|| format!("failed to get stop time for run number `{run_number}`"))?
-            .to_string(),
-        operator_comment: odb
-            .pointer("/Experiment/Edit on start/Comment")
-            .and_then(Value::as_str)
-            .with_context(|| format!("failed to get comment for run number `{run_number}`"))?
-            .to_string(),
-    })
+    Ok(template)
 }
 
-async fn run_core_command(
-    command: CoreCommand,
-    run_number: u32,
-    app_state: Arc<AppState>,
-) -> Result<std::path::PathBuf, anyhow::Error> {
-    let cache_path = CACHE_PATH.get().unwrap().join(run_number.to_string());
-    let output_path = cache_path.join(command.output(run_number));
-
-    let mut map = app_state.running_processes.lock().await;
-    match (map.get(&(run_number, command)), output_path.is_file()) {
-        (Some(handle), _) => {
-            let handle = handle.clone();
-            std::mem::drop(map);
-
-            let status = handle.wait().await?;
-            ensure!(
-                status.success(),
-                "failed to run `{command:?}` for run number `{run_number}`"
-            );
-            Ok(output_path)
-        }
-        (None, false) => {
-            let mid_files = get_midas_files(run_number).await.with_context(|| {
-                format!("failed to get MIDAS files for run number `{run_number}`")
-            })?;
-            ensure!(
-                !mid_files.is_empty(),
-                "no MIDAS files found for run number `{run_number}`"
-            );
-
-            let mut cmd = command.into_command();
-            match command {
-                CoreCommand::InitialOdb => cmd.arg(mid_files.first().unwrap()),
-                CoreCommand::FinalOdb => cmd.arg(mid_files.last().unwrap()),
-                CoreCommand::ChronoboxTimestamps
-                | CoreCommand::Sequencer
-                | CoreCommand::TrgScalers
-                | CoreCommand::Vertices => cmd.args(mid_files),
-            };
-            fs::create_dir_all(&cache_path).await.with_context(|| {
-                format!("failed to create directory `{}`", cache_path.display())
-            })?;
-            cmd.current_dir(&cache_path);
-
-            let cmd_handle = cmd::CmdActorHandle::new(cmd).with_context(|| {
-                format!("failed to create `{command:?}` handle for run number `{run_number}`")
-            })?;
-            map.insert((run_number, command), cmd_handle.clone());
-            std::mem::drop(map);
-
-            let status = cmd_handle.wait().await;
-            let mut map = app_state.running_processes.lock().await;
-            map.remove(&(run_number, command));
-            ensure!(
-                status?.success(),
-                "failed to run `{command:?}` for run number `{run_number}`"
-            );
-            Ok(output_path)
-        }
-        (None, true) => Ok(output_path),
-    }
+async fn websocket_handler(
+    ws: WebSocketUpgrade,
+    State(app_state): State<Arc<AppState>>,
+) -> impl IntoResponse {
+    ws.on_upgrade(|socket| websocket(socket, app_state))
 }
 
-async fn get_midas_files(run_number: u32) -> Result<Vec<std::path::PathBuf>, anyhow::Error> {
-    let prefix = format!("run{run_number:05}sub");
-
-    let mut run_files = Vec::new();
-    let mut entries = fs::read_dir(MIDAS_DATA_PATH.get().unwrap())
+async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
+    ws.send(Message::Text("Hello, World!".to_string()))
         .await
-        .context("failed to read MIDAS data directory")?;
-    while let Some(entry) = entries
-        .next_entry()
+        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    ws.send(Message::Text("Bye, World!".to_string()))
         .await
-        .context("failed to iterate over MIDAS data directory")?
-    {
-        let file_name = entry.file_name();
-        if file_name
-            .to_str()
-            .with_context(|| format!("non-UTF-8 filename `{:?}`", entry.file_name()))?
-            .starts_with(&prefix)
-        {
-            run_files.push(entry.path());
-        }
-    }
-    run_files.sort_unstable();
-
-    Ok(run_files)
+        .unwrap();
 }
