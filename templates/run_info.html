@@ -60,7 +60,7 @@
 
 		<div class="container mt-5">
 			<div class="dropdown">
-				<button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" disabled>
+				<button class="btn btn-primary dropdown-toggle" id="downloadButton" type="button" data-bs-toggle="dropdown" aria-expanded="false" disabled>
 					Download
 				</button>
 				<ul class="dropdown-menu">
@@ -81,6 +81,18 @@
 		</div>
 
 		<script>
+			const ws = new WebSocket("ws://" + window.location.host + "/ws");
+
+			ws.onopen = function() {
+				button = document.getElementById("downloadButton");
+				button.removeAttribute("disabled");
+			}
+
+			ws.onclose = function() {
+				button = document.getElementById("downloadButton");
+				button.setAttribute("disabled", "disabled");
+			}
+
 			function loadUrl() {
 				var baseUrl = window.location.origin;
 				var searchInput = document.getElementById("search-input").value;
@@ -96,7 +108,7 @@
 
 			let tabCounter = 1;
 
-			function createNewTab(ws_message) {
+			function createNewTab() {
 				var tabId = 'tab-' + tabCounter;
 				var tabContentId = 'content-' + tabId;
 
@@ -124,8 +136,6 @@
 				tabTrigger.show();
 
 				tabCounter++;
-
-				openWebSocket(outputId, ws_message);
 			}
 
 			function closeTab(event, tabId, tabContentId) {
@@ -138,29 +148,6 @@
 					var firstTab = new bootstrap.Tab(remainingTabs[0]);
 					firstTab.show();
 				}
-			}
-
-			function openWebSocket(outputId, ws_message) {
-				var ws = new WebSocket("ws://" + window.location.host + "/ws");
-
-				outputElement = document.getElementById(outputId);
-
-				ws.onopen = function() {
-					outputElement.innerText = 'Connection established...\n';
-					ws.send(ws_message);
-				};
-
-				ws.onmessage = function(event) {
-					outputElement.innerText += event.data + '\n';
-				};
-				
-				ws.onclose = function() {
-					outputElement.innerText += 'Connection closed.\n';
-				};
-
-				ws.onerror = function(error) {
-					outputElement.innerText += 'Websocket error: ' + error.message + '\n';
-				};
 			}
 		</script>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>

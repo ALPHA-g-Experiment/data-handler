@@ -211,11 +211,5 @@ async fn websocket_handler(
 }
 
 async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
-    ws.send(Message::Text("Hello, World!".to_string()))
-        .await
-        .unwrap();
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
-    ws.send(Message::Text("Bye, World!".to_string()))
-        .await
-        .unwrap();
+    tokio::time::sleep(std::time::Duration::from_secs(5000)).await;
 }
