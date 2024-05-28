@@ -106,16 +106,20 @@ impl CmdActor {
         rx: mpsc::UnboundedReceiver<CmdActorMessage>,
         cmd: CoreCmd,
         data_dir: P,
-        output_dir: P,
+        working_dir: P,
     ) -> Result<Self>
     where
         P: AsRef<Path>,
     {
+        fs::create_dir_all(&working_dir)
+            .await
+            .context("failed to create output directory")?;
+
         let child = cmd
             .into_command(data_dir)
             .await
             .context("failed to create command")?
-            .current_dir(output_dir)
+            .current_dir(working_dir)
             .spawn()
             .context("failed to spawn command")?;
         Ok(Self { rx, child })
@@ -147,12 +151,12 @@ pub struct CmdActorHandle {
 }
 
 impl CmdActorHandle {
-    async fn new<P>(cmd: CoreCmd, data_dir: P, output_dir: P) -> Result<Self>
+    async fn new<P>(cmd: CoreCmd, data_dir: P, working_dir: P) -> Result<Self>
     where
         P: AsRef<Path>,
     {
         let (tx, rx) = mpsc::unbounded_channel();
-        let actor = CmdActor::new(rx, cmd, data_dir, output_dir)
+        let actor = CmdActor::new(rx, cmd, data_dir, working_dir)
             .await
             .context("failed to create command actor")?;
         tokio::spawn(run_cmd_actor(actor));
@@ -171,20 +175,20 @@ impl CmdActorHandle {
 pub async fn spawn_core_command<P>(
     cmd: CoreCmd,
     data_dir: P,
-    output_dir: P,
+    working_dir: P,
     app_state: Arc<AppState>,
 ) -> Result<Option<CmdActorHandle>>
 where
     P: AsRef<Path>,
 {
     let mut processes = app_state.processes.lock().await;
-    if output_dir.as_ref().join(cmd.output()).is_file() {
+    if working_dir.as_ref().join(cmd.output()).is_file() {
         return Ok(None);
     }
     match processes.get(&cmd) {
         Some(handle) => Ok(Some(handle.clone())),
         None => {
-            let handle = CmdActorHandle::new(cmd, data_dir, output_dir)
+            let handle = CmdActorHandle::new(cmd, data_dir, working_dir)
                 .await
                 .context("failed to create command handle")?;
             processes.insert(cmd, handle.clone());

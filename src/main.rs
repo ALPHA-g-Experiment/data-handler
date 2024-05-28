@@ -157,9 +157,6 @@ async fn run_info(
     extract::Path(run_number): extract::Path<u32>,
 ) -> Result<RunInfoTemplate, AppError> {
     let working_dir = CACHE_PATH.get().unwrap().join(run_number.to_string());
-    fs::create_dir_all(&working_dir)
-        .await
-        .with_context(|| format!("failed to create `{}`", working_dir.display()))?;
 
     let cmd = CoreCmd {
         run_number,
