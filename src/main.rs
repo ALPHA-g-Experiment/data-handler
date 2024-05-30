@@ -5,9 +5,8 @@ use axum::extract::{self, State};
 use axum::response::{IntoResponse, Response};
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
-use cmd::{spawn_core_command, CmdActorHandle, CoreBin, CoreCmd};
+use cmd::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::sync::{Arc, OnceLock};
 use tokio::fs;
 
@@ -24,11 +23,6 @@ struct Args {
     /// Path to the MIDAS data directory
     #[arg(short, long, default_value = ".")]
     data_dir: std::path::PathBuf,
-}
-
-#[derive(Default)]
-struct AppState {
-    processes: tokio::sync::Mutex<HashMap<CoreCmd, CmdActorHandle>>,
 }
 
 struct AppError(anyhow::Error);
@@ -156,37 +150,31 @@ async fn run_info(
     State(app_state): State<Arc<AppState>>,
     extract::Path(run_number): extract::Path<u32>,
 ) -> Result<RunInfoTemplate, AppError> {
-    let working_dir = CACHE_PATH.get().unwrap().join(run_number.to_string());
-
     let cmd = CoreCmd {
-        run_number,
         bin: CoreBin::FinalOdb,
+        run_number,
+        data_dir: MIDAS_DATA_PATH.get().unwrap().clone(),
+        output_dir: CACHE_PATH.get().unwrap().join(run_number.to_string()),
     };
-    if let Some(handle) = spawn_core_command(
-        cmd,
-        MIDAS_DATA_PATH.get().unwrap(),
-        &working_dir,
-        app_state.clone(),
-    )
-    .await
-    .with_context(|| format!("failed to spawn `{cmd:?}`"))?
-    {
-        let status = handle
-            .wait()
-            .await
-            .with_context(|| format!("failed to wait for `{cmd:?}`"));
-        let mut processes = app_state.processes.lock().await;
-        processes.remove(&cmd);
-        let status = status?;
-        if !status.success() {
-            return Err(anyhow::anyhow!("`{cmd:?}` failed with `{status}`").into());
-        }
-    }
 
-    let expected_output = working_dir.join(cmd.output());
-    let contents = fs::read(&expected_output)
+    spawn_core_command(cmd.clone(), app_state.clone())
         .await
-        .with_context(|| format!("failed to read `{}`", expected_output.display()))?;
+        .with_context(|| {
+            format!(
+                "failed to spawn `{:?}` for run number `{run_number}`",
+                cmd.bin
+            )
+        })?;
+
+    let output = wait_core_command(&cmd, app_state).await.with_context(|| {
+        format!(
+            "failed to wait `{:?}` for run number `{run_number}`",
+            cmd.bin
+        )
+    })?;
+    let contents = fs::read(&output)
+        .await
+        .with_context(|| format!("failed to read `{}`", output.display()))?;
 
     let start_index = contents.iter().position(|&c| c == b'{').with_context(|| {
         format!("failed to find JSON data in final ODB for run number `{run_number}`")
