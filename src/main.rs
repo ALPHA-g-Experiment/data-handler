@@ -6,9 +6,11 @@ use axum::response::{IntoResponse, Response};
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
 use cmd::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
+use futures::{sink::SinkExt, stream::StreamExt};
 use serde_json::Value;
 use std::sync::{Arc, OnceLock};
 use tokio::fs;
+use tokio::sync::mpsc;
 use ws::{ClientMessage, ClientRequest, ServerMessage, ServerResponse};
 
 mod cmd;
@@ -184,29 +186,49 @@ async fn websocket_handler(
 }
 
 async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
-    while let Some(Ok(message)) = ws.recv().await {
-        if let Message::Text(message) = message {
-            let Ok(message) = serde_json::from_str::<ClientMessage>(&message) else {
-                continue;
-            };
+    let (mut ws_tx, mut ws_rx) = ws.split();
+    let (mpsc_tx, mut mpsc_rx) = mpsc::unbounded_channel();
 
-            let response = ServerMessage {
-                service: message.service.clone(),
-                context: message.context.clone(),
-                response: ServerResponse::Text("Hello from server!".to_string()),
-            };
-            let response = serde_json::to_string(&response).unwrap();
-            ws.send(Message::Text(response)).await.unwrap();
-
-            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-            let response = ServerMessage {
-                service: message.service,
-                context: message.context,
-                response: ServerResponse::Text("Bye from server!".to_string()),
-            };
-            let response = serde_json::to_string(&response).unwrap();
-            ws.send(Message::Text(response)).await.unwrap();
+    let mut send_task = tokio::spawn(async move {
+        while let Some(msg) = mpsc_rx.recv().await {
+            let msg = serde_json::to_string(&msg).unwrap();
+            if ws_tx.send(Message::Text(msg)).await.is_err() {
+                break;
+            }
         }
+    });
+
+    let mut recv_task = tokio::spawn(async move {
+        while let Some(Ok(msg)) = ws_rx.next().await {
+            if let Message::Text(msg) = msg {
+                let Ok(msg) = serde_json::from_str::<ClientMessage>(&msg) else {
+                    continue;
+                };
+
+                let tx = mpsc_tx.clone();
+                tokio::spawn(async move {
+                    let response = ServerMessage {
+                        service: msg.service.clone(),
+                        context: msg.context.clone(),
+                        response: ServerResponse::Text("Hello from server!".to_string()),
+                    };
+                    tx.send(response).unwrap();
+
+                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+                    let response = ServerMessage {
+                        service: msg.service,
+                        context: msg.context,
+                        response: ServerResponse::Text("Bye from server!".to_string()),
+                    };
+                    tx.send(response).unwrap();
+                });
+            }
+        }
+    });
+
+    tokio::select! {
+        _ = (&mut send_task) => (),
+        _ = (&mut recv_task) => (),
     }
 }
