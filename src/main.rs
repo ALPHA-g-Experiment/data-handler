@@ -9,8 +9,10 @@ use cmd::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use serde_json::Value;
 use std::sync::{Arc, OnceLock};
 use tokio::fs;
+use ws::{ClientMessage, ClientRequest, ServerMessage, ServerResponse};
 
 mod cmd;
+mod ws;
 
 static MIDAS_DATA_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
 static CACHE_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
@@ -44,20 +46,6 @@ where
     fn from(err: E) -> Self {
         Self(err.into())
     }
-}
-
-struct ClientMessage {
-    service: String,
-    context: String,
-    request: ClientRequest,
-}
-
-enum ClientRequest {
-    ChronoboxCsv { run_number: u32 },
-    InitialOdb { run_number: u32 },
-    SequencerEvents { run_number: u32 },
-    TrgScalersCsv { run_number: u32 },
-    VerticesCsv { run_number: u32 },
 }
 
 #[tokio::main]
@@ -196,5 +184,29 @@ async fn websocket_handler(
 }
 
 async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
-    tokio::time::sleep(std::time::Duration::from_secs(5000)).await;
+    while let Some(Ok(message)) = ws.recv().await {
+        if let Message::Text(message) = message {
+            let Ok(message) = serde_json::from_str::<ClientMessage>(&message) else {
+                continue;
+            };
+
+            let response = ServerMessage {
+                service: message.service.clone(),
+                context: message.context.clone(),
+                response: ServerResponse::Text("Hello from server!".to_string()),
+            };
+            let response = serde_json::to_string(&response).unwrap();
+            ws.send(Message::Text(response)).await.unwrap();
+
+            tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+
+            let response = ServerMessage {
+                service: message.service,
+                context: message.context,
+                response: ServerResponse::Text("Bye from server!".to_string()),
+            };
+            let response = serde_json::to_string(&response).unwrap();
+            ws.send(Message::Text(response)).await.unwrap();
+        }
+    }
 }

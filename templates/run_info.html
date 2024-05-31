@@ -64,11 +64,11 @@
 					Download
 				</button>
 				<ul class="dropdown-menu">
-					<li><a class="dropdown-item" onclick="createNewTab()" href="#!">Chronobox Timestamps</a></li>
-					<li><a class="dropdown-item" onclick="createNewTab()" href="#!">Initial ODB</a></li>
-					<li><a class="dropdown-item" onclick="createNewTab()" href="#!">Sequencer Events</a></li>
-					<li><a class="dropdown-item" onclick="createNewTab()" href="#!">TRG Scalers</a></li>
-					<li><a class="dropdown-item" onclick="createNewTab()" href="#!">Vertices</a></li>
+					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})" href="#!">Chronobox Timestamps</a></li>
+					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {InitialOdb: {run_number: {{ run_number }} }}})" href="#!">Initial ODB</a></li>
+					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {SequencerEvents: {run_number: {{ run_number }} }}})" href="#!">Sequencer Events</a></li>
+					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }} }}})" href="#!">TRG Scalers</a></li>
+					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})" href="#!">Vertices</a></li>
 				</ul>
 			</div>
 		</div>
@@ -93,6 +93,24 @@
 				button.setAttribute("disabled", "disabled");
 			}
 
+			ws.onmessage = function(event) {
+				const msg = JSON.parse(event.data);
+
+				switch (msg.service) {
+					case "Download":
+						const outputId = msg.context;
+						var output = document.getElementById(outputId);
+						if (output === null) {
+							break;
+						}
+
+						if (msg.response.Text) {
+							output.textContent += msg.response.Text + "\n";
+						}
+						break;
+				}
+			}
+
 			function loadUrl() {
 				var baseUrl = window.location.origin;
 				var searchInput = document.getElementById("search-input").value;
@@ -108,7 +126,7 @@
 
 			let tabCounter = 1;
 
-			function createNewTab() {
+			function createNewTab(jsonMessage) {
 				var tabId = 'tab-' + tabCounter;
 				var tabContentId = 'content-' + tabId;
 
@@ -129,13 +147,16 @@
 				newTabContent.className = "tab-pane fade";
 				newTabContent.id = tabContentId;
 				newTabContent.setAttribute("role", "tabpanel");
-				newTabContent.innerHTML = `<pre class="p-3 bg-light border"	id="${outputId}">Loading...</pre>`;
+				newTabContent.innerHTML = `<pre class="p-3 bg-light border"	id="${outputId}">Connecting to server...\n</pre>`;
 				tabContent.appendChild(newTabContent);
 
 				var tabTrigger = new bootstrap.Tab(document.getElementById(`${tabId}`));
 				tabTrigger.show();
 
 				tabCounter++;
+
+				jsonMessage.context = outputId;
+				ws.send(JSON.stringify(jsonMessage));
 			}
 
 			function closeTab(event, tabId, tabContentId) {
