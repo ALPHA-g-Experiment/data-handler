@@ -1,3 +1,4 @@
+use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use anyhow::{ensure, Context};
 use askama_axum::Template;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -5,7 +6,6 @@ use axum::extract::{self, State};
 use axum::response::{IntoResponse, Response};
 use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
-use cmd::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde_json::Value;
 use std::sync::{Arc, OnceLock};
@@ -13,11 +13,8 @@ use tokio::fs;
 use tokio::sync::mpsc;
 use ws::{ClientMessage, ClientRequest, ServerMessage, ServerResponse};
 
-mod cmd;
+mod core_command;
 mod ws;
-
-static MIDAS_DATA_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
-static CACHE_PATH: OnceLock<std::path::PathBuf> = OnceLock::new();
 
 #[derive(Parser)]
 struct Args {
@@ -53,15 +50,9 @@ where
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
     let args = Args::parse();
-    MIDAS_DATA_PATH
+    core_command::MIDAS_DATA_PATH
         .set(args.data_dir)
         .expect("failed to set MIDAS_DATA_PATH");
-
-    let project_dirs = directories::ProjectDirs::from("com", "ALPHA", "ALPHA-g-Data-Handler")
-        .context("failed to get project directories")?;
-    CACHE_PATH
-        .set(project_dirs.cache_dir().to_path_buf())
-        .expect("failed to set CACHE_PATH");
 
     let app_state = Arc::new(AppState::default());
     let app = Router::new()
@@ -143,11 +134,9 @@ async fn run_info(
     let cmd = CoreCmd {
         bin: CoreBin::FinalOdb,
         run_number,
-        data_dir: MIDAS_DATA_PATH.get().unwrap().clone(),
-        output_dir: CACHE_PATH.get().unwrap().join(run_number.to_string()),
     };
 
-    spawn_core_command(cmd.clone(), app_state.clone())
+    spawn_core_command(cmd, app_state.clone())
         .await
         .with_context(|| {
             format!(
@@ -156,7 +145,7 @@ async fn run_info(
             )
         })?;
 
-    let output = wait_core_command(&cmd, app_state).await.with_context(|| {
+    let output = wait_core_command(cmd, app_state).await.with_context(|| {
         format!(
             "failed to wait `{:?}` for run number `{run_number}`",
             cmd.bin
