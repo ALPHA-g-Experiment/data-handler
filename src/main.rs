@@ -1,3 +1,4 @@
+use crate::communication::handle_client_message;
 use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use anyhow::{ensure, Context};
 use askama_axum::Template;
@@ -8,13 +9,12 @@ use axum::{http::StatusCode, routing::get, Router};
 use clap::Parser;
 use futures::{sink::SinkExt, stream::StreamExt};
 use serde_json::Value;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 use tokio::fs;
 use tokio::sync::mpsc;
-use ws::{ClientMessage, ClientRequest, ServerMessage, ServerResponse};
 
+mod communication;
 mod core_command;
-mod ws;
 
 #[derive(Parser)]
 struct Args {
@@ -174,7 +174,7 @@ async fn websocket_handler(
     ws.on_upgrade(|socket| websocket(socket, app_state))
 }
 
-async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
+async fn websocket(ws: WebSocket, app_state: Arc<AppState>) {
     let (mut ws_tx, mut ws_rx) = ws.split();
     let (mpsc_tx, mut mpsc_rx) = mpsc::unbounded_channel();
 
@@ -190,27 +190,14 @@ async fn websocket(mut ws: WebSocket, app_state: Arc<AppState>) {
     let mut recv_task = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_rx.next().await {
             if let Message::Text(msg) = msg {
-                let Ok(msg) = serde_json::from_str::<ClientMessage>(&msg) else {
+                let Ok(msg) = serde_json::from_str(&msg) else {
                     continue;
                 };
 
                 let tx = mpsc_tx.clone();
+                let app_state = app_state.clone();
                 tokio::spawn(async move {
-                    let response = ServerMessage {
-                        service: msg.service.clone(),
-                        context: msg.context.clone(),
-                        response: ServerResponse::Text("Hello from server!".to_string()),
-                    };
-                    tx.send(response).unwrap();
-
-                    tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-
-                    let response = ServerMessage {
-                        service: msg.service,
-                        context: msg.context,
-                        response: ServerResponse::Text("Bye from server!".to_string()),
-                    };
-                    tx.send(response).unwrap();
+                    handle_client_message(msg, tx, app_state).await;
                 });
             }
         }

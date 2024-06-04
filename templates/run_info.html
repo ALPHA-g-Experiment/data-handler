@@ -147,7 +147,7 @@
 				newTabContent.className = "tab-pane fade";
 				newTabContent.id = tabContentId;
 				newTabContent.setAttribute("role", "tabpanel");
-				newTabContent.innerHTML = `<pre class="p-3 bg-light border"	id="${outputId}">Connecting to server...\n</pre>`;
+				newTabContent.innerHTML = `<pre class="p-3 bg-light border" id="${outputId}"></pre>`;
 				tabContent.appendChild(newTabContent);
 
 				var tabTrigger = new bootstrap.Tab(document.getElementById(`${tabId}`));
