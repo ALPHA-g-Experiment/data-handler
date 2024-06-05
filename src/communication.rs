@@ -38,7 +38,7 @@ pub struct ServerMessage {
 pub struct Claims {
     exp: u64,
     // Absolute path in the server.
-    path: std::path::PathBuf,
+    pub path: std::path::PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]

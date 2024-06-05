@@ -1,13 +1,15 @@
-use crate::communication::handle_client_message;
+use crate::communication::{handle_client_message, Claims};
 use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
 use crate::templates::RunInfoTemplate;
 use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{self, State};
+use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
-use axum::{http::StatusCode, routing::get, Router};
+use axum::{routing::get, Router};
 use clap::Parser;
 use futures::{sink::SinkExt, stream::StreamExt};
+use jsonwebtoken::{decode, DecodingKey, Validation};
 use std::sync::Arc;
 use tokio::{fs, sync::mpsc};
 
@@ -58,6 +60,7 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/", get(|| async { "Hello, World!" }))
         .route("/:run_number", get(run_info))
         .route("/ws", get(websocket_handler))
+        .route("/download/:token", get(download_handler))
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(args.addr)
@@ -150,4 +153,43 @@ async fn websocket(ws: WebSocket, app_state: Arc<AppState>) {
         _ = (&mut send_task) => (),
         _ = (&mut recv_task) => (),
     }
+}
+
+async fn download_handler(
+    extract::Path(token): extract::Path<String>,
+) -> Result<(HeaderMap, Vec<u8>), AppError> {
+    let secret = std::env::var("AG_JWT_SECRET").context("failed to get JWT shared secret")?;
+    let token = decode::<Claims>(
+        &token,
+        &DecodingKey::from_secret(secret.as_ref()),
+        &Validation::default(),
+    )
+    .context("failed to decode JWT string")?;
+
+    let path = token.claims.path;
+    let contents = fs::read(&path)
+        .await
+        .with_context(|| format!("failed to read `{}`", path.display()))?;
+
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        header::CONTENT_TYPE,
+        // I don't want to specify any type because e.g. the JSON odb file
+        // starts with a comment, which would make it not a valid JSON.
+        // Simply just say everything is binary data.
+        "application/octet-stream".parse().unwrap(),
+    );
+    headers.insert(
+        header::CONTENT_DISPOSITION,
+        format!(
+            "attachment; filename=\"{}\"",
+            path.file_name()
+                .context("failed to get file name")?
+                .to_string_lossy()
+        )
+        .parse()
+        .unwrap(),
+    );
+
+    Ok((headers, contents))
 }
