@@ -106,10 +106,17 @@
 
 						if (msg.response.Text) {
 							output.textContent += msg.response.Text + "\n";
-						}
-						else if (msg.response.Error) {
+						} else if (msg.response.Error) {
 							output.textContent += msg.response.Error + "\n";
+						} else if (msg.response.DownloadJWT) {
+							var a = document.createElement("a");
+							a.href = "/download/" + msg.response.DownloadJWT;
+							a.setAttribute("download", "");
+							a.click();
+
+							output.textContent += "Done\n";
 						}
+
 						break;
 				}
 			}
