@@ -1,4 +1,5 @@
 use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
+use jsonwebtoken::{encode, get_current_timestamp, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -28,6 +29,16 @@ pub struct ServerMessage {
     pub service: String,
     pub context: String,
     pub response: ServerResponse,
+}
+// Whenever a file is available for download, the server will send a JWT to the
+// client. This allows stateless authentication for the download.
+//
+// Shared secret is stored in server environment variable `AG_JWT_SECRET`.
+#[derive(Deserialize, Serialize)]
+pub struct Claims {
+    exp: u64,
+    // Absolute path in the server.
+    path: std::path::PathBuf,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -115,6 +126,51 @@ async fn run_core_command(
     }
 }
 
+fn send_download_jwt(
+    service: &str,
+    context: &str,
+    tx: &mpsc::UnboundedSender<ServerMessage>,
+    path: PathBuf,
+) {
+    let claims = Claims {
+        // Arbitrary short expiration time.
+        exp: get_current_timestamp() + 120,
+        path,
+    };
+
+    let Ok(secret) = std::env::var("AG_JWT_SECRET") else {
+        let response = ServerMessage {
+            service: service.to_string(),
+            context: context.to_string(),
+            response: ServerResponse::Error("Error: JWT secret not set in server".to_string()),
+        };
+        let _ = tx.send(response);
+        return;
+    };
+    match encode(
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_ref()),
+    ) {
+        Ok(token) => {
+            let response = ServerMessage {
+                service: service.to_string(),
+                context: context.to_string(),
+                response: ServerResponse::DownloadJWT(token),
+            };
+            let _ = tx.send(response);
+        }
+        Err(e) => {
+            let response = ServerMessage {
+                service: service.to_string(),
+                context: context.to_string(),
+                response: ServerResponse::Error(format!("Error: {e:?}")),
+            };
+            let _ = tx.send(response);
+        }
+    }
+}
+
 async fn handle_chronobox_csv(
     msg: ClientMessage,
     tx: mpsc::UnboundedSender<ServerMessage>,
@@ -130,6 +186,7 @@ async fn handle_chronobox_csv(
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
         return;
     };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
 async fn handle_initial_odb(
@@ -147,6 +204,7 @@ async fn handle_initial_odb(
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
         return;
     };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
 async fn handle_sequencer_events(
@@ -211,6 +269,7 @@ async fn handle_trg_scalers_csv(
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
         return;
     };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
 async fn handle_vertices_csv(
@@ -228,4 +287,5 @@ async fn handle_vertices_csv(
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
         return;
     };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
