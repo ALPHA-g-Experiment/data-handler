@@ -6,7 +6,7 @@ use tokio::sync::mpsc;
 
 // The `service` and `context` fields are 100% ignored by the server. They are
 // only used to help the client keep track of what each response corresponds to.
-// These should just be passed directly and unmodified to the response.
+// These should just be passed directly and unmodified to the ServerMessage.
 #[derive(Clone, Debug, Deserialize)]
 pub struct ClientMessage {
     pub service: String,
@@ -33,13 +33,21 @@ pub struct ServerMessage {
 #[derive(Clone, Debug, Serialize)]
 pub enum ServerResponse {
     Text(String),
+    Error(String),
+    DownloadJWT(String),
 }
 
 pub async fn handle_client_message(
     msg: ClientMessage,
+    // Any message that needs to be sent to the client should be sent through
+    // this channel. This is handled by a `send_task` in the main websocket
+    // loop.
     tx: mpsc::UnboundedSender<ServerMessage>,
     app_state: Arc<AppState>,
 ) {
+    // All these "handle_*" functions take the same arguments instead of just
+    // the minimum required for the specific request. This is because, for more
+    // complex requests, this will start getting out of hand and unreadable.
     match msg.request {
         ClientRequest::ChronoboxCsv { .. } => {
             handle_chronobox_csv(msg, tx, app_state).await;
@@ -67,13 +75,13 @@ async fn run_core_command(
     app_state: Arc<AppState>,
     // This returns a Result because it makes it easier to `tokio::try_join!`.
     // The error type doesn't matter at all, because any error is just reported
-    // to the client as a text response.
+    // to the client as a response.
 ) -> Result<PathBuf, ()> {
     if let Err(e) = spawn_core_command(cmd, app_state.clone()).await {
         let response = ServerMessage {
             service: service.to_string(),
             context: context.to_string(),
-            response: ServerResponse::Text(format!("Error: {e:?}")),
+            response: ServerResponse::Error(format!("Error: {e:?}")),
         };
         let _ = tx.send(response);
         return Err(());
@@ -99,7 +107,7 @@ async fn run_core_command(
             let response = ServerMessage {
                 service: service.to_string(),
                 context: context.to_string(),
-                response: ServerResponse::Text(format!("Error: {e:?}")),
+                response: ServerResponse::Error(format!("Error: {e:?}")),
             };
             let _ = tx.send(response);
             Err(())

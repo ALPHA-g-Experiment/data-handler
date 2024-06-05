@@ -107,6 +107,9 @@
 						if (msg.response.Text) {
 							output.textContent += msg.response.Text + "\n";
 						}
+						else if (msg.response.Error) {
+							output.textContent += msg.response.Error + "\n";
+						}
 						break;
 				}
 			}
