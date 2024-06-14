@@ -1,4 +1,5 @@
 use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
+use crate::secondary_script::{self, SecondaryScript};
 use jsonwebtoken::{encode, get_current_timestamp, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -110,6 +111,43 @@ async fn run_core_command(
                 service: service.to_string(),
                 context: context.to_string(),
                 response: ServerResponse::Text(format!("Finished running `{:?}`", cmd.bin)),
+            };
+            let _ = tx.send(response);
+            Ok(filename)
+        }
+        Err(e) => {
+            let response = ServerMessage {
+                service: service.to_string(),
+                context: context.to_string(),
+                response: ServerResponse::Error(format!("Error: {e:?}")),
+            };
+            let _ = tx.send(response);
+            Err(())
+        }
+    }
+}
+
+async fn run_secondary_script<S: SecondaryScript>(
+    service: &str,
+    context: &str,
+    script: S,
+    output: &str,
+    tx: &mpsc::UnboundedSender<ServerMessage>,
+    // Same as `run_core_command`.
+) -> Result<PathBuf, ()> {
+    let response = ServerMessage {
+        service: service.to_string(),
+        context: context.to_string(),
+        response: ServerResponse::Text(format!("Spawned `{script}`")),
+    };
+    let _ = tx.send(response);
+
+    match script.spawn_and_wait(output).await {
+        Ok(filename) => {
+            let response = ServerMessage {
+                service: service.to_string(),
+                context: context.to_string(),
+                response: ServerResponse::Text(format!("Finished running `{script}`")),
             };
             let _ = tx.send(response);
             Ok(filename)
@@ -252,6 +290,24 @@ async fn handle_sequencer_events(
     ) else {
         return;
     };
+
+    let script = secondary_script::Sequencer {
+        sequencer_csv,
+        initial_odb_json,
+        chronobox_csv,
+    };
+    let Ok(output) = run_secondary_script(
+        &msg.service,
+        &msg.context,
+        script,
+        &format!("R{run_number}_sequencer_events.csv"),
+        &tx,
+    )
+    .await
+    else {
+        return;
+    };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
 async fn handle_trg_scalers_csv(
