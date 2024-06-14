@@ -15,6 +15,7 @@ use tokio::{fs, sync::mpsc};
 
 mod communication;
 mod core_command;
+mod secondary_script;
 mod templates;
 
 #[derive(Parser)]
