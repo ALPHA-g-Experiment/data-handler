@@ -22,6 +22,10 @@ pub enum ClientRequest {
     InitialOdb { run_number: u32 },
     SequencerEvents { run_number: u32 },
     TrgScalersCsv { run_number: u32 },
+    TrgScalersPlot {
+        run_number: u32,
+        args: secondary_script::TrgScalersArgs,
+    },
     VerticesCsv { run_number: u32 },
 }
 
@@ -72,6 +76,9 @@ pub async fn handle_client_message(
         }
         ClientRequest::TrgScalersCsv { .. } => {
             handle_trg_scalers_csv(msg, tx, app_state).await;
+        }
+        ClientRequest::TrgScalersPlot { .. } => {
+            handle_trg_scalers_plot(msg, tx, app_state).await;
         }
         ClientRequest::VerticesCsv { .. } => {
             handle_vertices_csv(msg, tx, app_state).await;
@@ -323,6 +330,40 @@ async fn handle_trg_scalers_csv(
         run_number,
     };
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
+}
+
+async fn handle_trg_scalers_plot(
+    msg: ClientMessage,
+    tx: mpsc::UnboundedSender<ServerMessage>,
+    app_state: Arc<AppState>,
+) {
+    let ClientRequest::TrgScalersPlot { run_number, args } = msg.request else {
+        unreachable!();
+    };
+    let cmd = CoreCmd {
+        bin: CoreBin::TrgScalers,
+        run_number,
+    };
+    let Ok(csv) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state.clone()).await else {
+        return;
+    };
+
+    let script = secondary_script::TrgScalers {
+        csv,
+        args,
+    };
+    let Ok(output) = run_secondary_script(
+        &msg.service,
+        &msg.context,
+        script,
+        &format!("R{run_number}_trg_scalers_plot.pdf"),
+        &tx,
+    )
+    .await
+    else {
         return;
     };
     send_download_jwt(&msg.service, &msg.context, &tx, output);

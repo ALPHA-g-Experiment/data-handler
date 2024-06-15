@@ -125,7 +125,7 @@ impl SecondaryScript for ChronoboxTimestamps {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct TrgScalersArgs {
     t_bins: Option<u32>,
     t_max: Option<f64>,
@@ -138,8 +138,8 @@ pub struct TrgScalersArgs {
 }
 
 pub struct TrgScalers {
-    csv: PathBuf,
-    args: TrgScalersArgs,
+    pub csv: PathBuf,
+    pub args: TrgScalersArgs,
 }
 
 impl fmt::Display for TrgScalers {
