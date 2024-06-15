@@ -67,7 +67,14 @@
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})" href="#!">Chronobox Timestamps</a></li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {InitialOdb: {run_number: {{ run_number }} }}})" href="#!">Initial ODB</a></li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {SequencerEvents: {run_number: {{ run_number }} }}})" href="#!">Sequencer Events</a></li>
-					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }} }}})" href="#!">TRG Scalers</a></li>
+					<li class="dropend">
+						<a type="button" class="dropdown-item dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+							TRG Scalers
+						</a>
+						<ul class="dropdown-menu sub-menu">
+							<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }}}}})" href="#!">CSV</a></li>
+						</ul>
+					</li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})" href="#!">Vertices</a></li>
 				</ul>
 			</div>
@@ -81,6 +88,17 @@
 		</div>
 
 		<script>
+			document.querySelectorAll('.dropdown-menu a').forEach(function(element) {
+				let nextEl = element.nextElementSibling;
+				if(nextEl && nextEl.classList.contains('sub-menu')) {
+					element.addEventListener('click', function (e) {
+						// prevent opening link if link needs to open dropdown
+						e.preventDefault();
+						e.stopPropagation();
+					});
+				}
+			})
+
 			const ws = new WebSocket("ws://" + window.location.host + "/ws");
 
 			ws.onopen = function() {
