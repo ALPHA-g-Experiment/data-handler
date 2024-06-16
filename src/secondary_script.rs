@@ -195,7 +195,7 @@ impl SecondaryScript for TrgScalers {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct VerticesArgs {
     phi_bins: Option<u32>,
     phi_max: Option<f64>,
@@ -212,8 +212,8 @@ pub struct VerticesArgs {
 }
 
 pub struct Vertices {
-    csv: PathBuf,
-    args: VerticesArgs,
+    pub csv: PathBuf,
+    pub args: VerticesArgs,
 }
 
 impl fmt::Display for Vertices {

@@ -18,15 +18,29 @@ pub struct ClientMessage {
 // These are all the possible things a client can request from the server.
 #[derive(Clone, Debug, Deserialize)]
 pub enum ClientRequest {
-    ChronoboxCsv { run_number: u32 },
-    InitialOdb { run_number: u32 },
-    SequencerEvents { run_number: u32 },
-    TrgScalersCsv { run_number: u32 },
+    ChronoboxCsv {
+        run_number: u32,
+    },
+    InitialOdb {
+        run_number: u32,
+    },
+    SequencerEvents {
+        run_number: u32,
+    },
+    TrgScalersCsv {
+        run_number: u32,
+    },
     TrgScalersPlot {
         run_number: u32,
         args: secondary_script::TrgScalersArgs,
     },
-    VerticesCsv { run_number: u32 },
+    VerticesCsv {
+        run_number: u32,
+    },
+    VerticesPlot {
+        run_number: u32,
+        args: secondary_script::VerticesArgs,
+    },
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -82,6 +96,9 @@ pub async fn handle_client_message(
         }
         ClientRequest::VerticesCsv { .. } => {
             handle_vertices_csv(msg, tx, app_state).await;
+        }
+        ClientRequest::VerticesPlot { .. } => {
+            handle_vertices_plot(msg, tx, app_state).await;
         }
     }
 }
@@ -347,14 +364,11 @@ async fn handle_trg_scalers_plot(
         bin: CoreBin::TrgScalers,
         run_number,
     };
-    let Ok(csv) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state.clone()).await else {
+    let Ok(csv) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
         return;
     };
 
-    let script = secondary_script::TrgScalers {
-        csv,
-        args,
-    };
+    let script = secondary_script::TrgScalers { csv, args };
     let Ok(output) = run_secondary_script(
         &msg.service,
         &msg.context,
@@ -382,6 +396,37 @@ async fn handle_vertices_csv(
         run_number,
     };
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
+}
+
+async fn handle_vertices_plot(
+    msg: ClientMessage,
+    tx: mpsc::UnboundedSender<ServerMessage>,
+    app_state: Arc<AppState>,
+) {
+    let ClientRequest::VerticesPlot { run_number, args } = msg.request else {
+        unreachable!();
+    };
+    let cmd = CoreCmd {
+        bin: CoreBin::Vertices,
+        run_number,
+    };
+    let Ok(csv) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+
+    let script = secondary_script::Vertices { csv, args };
+    let Ok(output) = run_secondary_script(
+        &msg.service,
+        &msg.context,
+        script,
+        &format!("R{run_number}_vertices_plot.pdf"),
+        &tx,
+    )
+    .await
+    else {
         return;
     };
     send_download_jwt(&msg.service, &msg.context, &tx, output);
