@@ -73,12 +73,72 @@
 						</a>
 						<ul class="dropdown-menu sub-menu">
 							<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }}}}})" href="#!">CSV</a></li>
+							<li><a class="dropdown-item" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#trgOptions">
+									Plot
+								</a>
+							</li>
 						</ul>
 					</li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})" href="#!">Vertices</a></li>
 				</ul>
 			</div>
 		</div>
+
+		<div class="modal fade" id="trgOptions" tabindex="-1" aria-labelledby="trgOptionModal" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+			  <div class="modal-header">
+				<h1 class="modal-title fs-5" id="trgOptionsModalLabel">
+					TRG Scalers Plot Options
+				</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			  </div>
+			  <div class="modal-body">
+				  <div class="modal-body">
+					<form id="trgOptionsForm">
+					  <div class="mb-3">
+						<label for="TRGtBins" class="form-label">Number of bins along time axis</label>
+						<input type="numeric" class="form-control" id="TRGtBins" placeholder="Optional">
+					  </div>
+					  <div class="mb-3">
+						<label for="TRGtMin" class="form-label">Minimum time (seconds)</label>
+						<input type="numeric" class="form-control" id="TRGtMin" step="any" placeholder="Optional">
+					  </div>
+					  <div class="mb-3">
+						<label for="TRGtMax" class="form-label">Maximum time (seconds)</label>
+						<input type="numeric" class="form-control" id="TRGtMax" step="any" placeholder="Optional">
+					  </div>
+					  <div class="mb-3 form-check">
+						<input type="checkbox" class="form-check-input"	id="TRGInput" checked>
+						<label class="form-check-label" for="TRGInput">Input counter</label>
+					  </div>
+					  <div class="mb-3 form-check">
+						<input type="checkbox" class="form-check-input" id="TRGDriftVeto">
+						<label class="form-check-label" for="TRGDriftVeto">Drift veto counter</label>
+					  </div>
+					  <div class="mb-3 form-check">
+						<input type="checkbox" class="form-check-input" id="TRGScaleDown">
+						<label class="form-check-label" for="TRGScaleDown">Scaledown counter</label>
+					  </div>
+					  <div class="mb-3 form-check">
+						<input type="checkbox" class="form-check-input" id="TRGPulser">
+						<label class="form-check-label" for="TRGPulser">Pulser counter</label>
+					  </div>
+					  <div class="mb-3 form-check">
+						<input type="checkbox" class="form-check-input"	id="TRGOutput" checked>
+						<label class="form-check-label" for="TRGOutput">Output counter</label>
+					  </div>
+					</form>
+				  </div>
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="requestTrgScalersPlot()">Download</button>
+			  </div>
+			</div>
+		  </div>
+		</div>
+
 
 		<div class="container mt-5">
 			<ul class="nav nav-tabs" id="commandTabs" role="tablist">
@@ -197,6 +257,21 @@
 					var firstTab = new bootstrap.Tab(remainingTabs[0]);
 					firstTab.show();
 				}
+			}
+
+			function requestTrgScalersPlot() {
+			    const trg_args = {
+					t_bins: parseInt(document.getElementById("TRGtBins").value),
+					t_max: parseFloat(document.getElementById("TRGtMax").value),
+					t_min: parseFloat(document.getElementById("TRGtMin").value),
+					include_drift_veto: document.getElementById("TRGDriftVeto").checked,
+					include_pulser: document.getElementById("TRGPulser").checked,
+					include_scaledown: document.getElementById("TRGScaleDown").checked,
+					remove_input: !document.getElementById("TRGInput").checked,
+					remove_output: !document.getElementById("TRGOutput").checked,
+				};
+
+				createNewTab({service: 'Download', context: '', request: {TrgScalersPlot: {run_number: {{ run_number }}, args: trg_args}}});
 			}
 		</script>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
