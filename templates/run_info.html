@@ -79,7 +79,19 @@
 							</li>
 						</ul>
 					</li>
-					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})" href="#!">Vertices</a></li>
+					<li class="dropend">
+						<a type="button" class="dropdown-item dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+							Vertices
+						</a>
+						<ul class="dropdown-menu sub-menu">
+							<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})" href="#!">CSV</a></li>
+							<li><a class="dropdown-item" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#vtxOptions">
+									Plot
+								</a>
+							</li>
+						</ul>
+					</li>
+
 				</ul>
 			</div>
 		</div>
