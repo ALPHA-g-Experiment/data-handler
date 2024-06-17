@@ -71,7 +71,7 @@ impl SecondaryScript for Sequencer {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ChronoboxTimestampsArgs {
     board_name: String,
     channel_number: u8,
@@ -81,8 +81,8 @@ pub struct ChronoboxTimestampsArgs {
 }
 
 pub struct ChronoboxTimestamps {
-    csv: PathBuf,
-    args: ChronoboxTimestampsArgs,
+    pub csv: PathBuf,
+    pub args: ChronoboxTimestampsArgs,
 }
 
 impl fmt::Display for ChronoboxTimestamps {

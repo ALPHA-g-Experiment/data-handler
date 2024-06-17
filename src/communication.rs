@@ -21,6 +21,10 @@ pub enum ClientRequest {
     ChronoboxCsv {
         run_number: u32,
     },
+    ChronoboxPlot {
+        run_number: u32,
+        args: secondary_script::ChronoboxTimestampsArgs,
+    },
     InitialOdb {
         run_number: u32,
     },
@@ -81,6 +85,9 @@ pub async fn handle_client_message(
     match msg.request {
         ClientRequest::ChronoboxCsv { .. } => {
             handle_chronobox_csv(msg, tx, app_state).await;
+        }
+        ClientRequest::ChronoboxPlot { .. } => {
+            handle_chronobox_plot(msg, tx, app_state).await;
         }
         ClientRequest::InitialOdb { .. } => {
             handle_initial_odb(msg, tx, app_state).await;
@@ -246,6 +253,37 @@ async fn handle_chronobox_csv(
         run_number,
     };
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
+}
+
+async fn handle_chronobox_plot(
+    msg: ClientMessage,
+    tx: mpsc::UnboundedSender<ServerMessage>,
+    app_state: Arc<AppState>,
+) {
+    let ClientRequest::ChronoboxPlot { run_number, args } = msg.request else {
+        unreachable!();
+    };
+    let cmd = CoreCmd {
+        bin: CoreBin::ChronoboxTimestamps,
+        run_number,
+    };
+    let Ok(csv) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+
+    let script = secondary_script::ChronoboxTimestamps { csv, args };
+    let Ok(output) = run_secondary_script(
+        &msg.service,
+        &msg.context,
+        script,
+        &format!("R{run_number}_chronobox_plot.pdf"),
+        &tx,
+    )
+    .await
+    else {
         return;
     };
     send_download_jwt(&msg.service, &msg.context, &tx, output);
