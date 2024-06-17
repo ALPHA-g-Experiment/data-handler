@@ -107,6 +107,51 @@
 			</div>
 		</div>
 
+		<div class="modal fade" id="cbOptions" tabindex="-1" aria-labelledby="cbOptionsModalLabel" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+			  <div class="modal-header">
+				<h1 class="modal-title fs-5" id="cbOptionsModalLabel">Chronobox Timestamps Plot Options</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			  </div>
+			  <div class="modal-body">
+				<form id="cbOptionsForm">
+				  <div class="mb-3">
+					<label for="boardName" class="form-label">Board Name</label>
+					<select class="form-select" id="boardName" required>
+					  <option value="" selected disabled>Select board name</option>
+					  <option value="cb01">cb01</option>
+					  <option value="cb02">cb02</option>
+					  <option value="cb03">cb03</option>
+					  <option value="cb04">cb04</option>
+					</select>
+				  </div>
+				  <div class="mb-3">
+					<label for="channelNumber" class="form-label">Channel Number</label>
+					<input type="number" class="form-control" id="channelNumber" min="0" max="59" required>
+				  </div>
+				  <div class="mb-3">
+					<label for="cb_tBins" class="form-label">Number of Bins</label>
+					<input type="numeric" class="form-control" id="cb_tBins" min="1">
+				  </div>
+				  <div class="mb-3">
+					<label for="cb_tMin" class="form-label">Minimum Time (seconds)</label>
+					<input type="numeric" class="form-control" id="cb_tMin">
+				  </div>
+				  <div class="mb-3">
+					<label for="cb_tMax" class="form-label">Maximum Time (seconds)</label>
+					<input type="numeric" class="form-control" id="cb_tMax">
+				  </div>
+				</form>
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="requestChronoboxPlot()">Download</button>
+			  </div>
+			</div>
+		  </div>
+		</div>
+
 		<div class="modal fade" id="trgOptions" tabindex="-1" aria-labelledby="trgOptionModal" aria-hidden="true">
 		  <div class="modal-dialog modal-dialog-centered">
 			<div class="modal-content">
@@ -394,6 +439,18 @@
 				};
 
 				createNewTab({service: 'Download', context: '', request: {VerticesPlot: {run_number: {{ run_number }}, args: vtx_args}}});
+			}
+
+			function requestChronoboxPlot() {
+				const cb_args = {
+					board_name: document.getElementById("boardName").value,
+					channel_number: parseInt(document.getElementById("channelNumber").value),
+					t_bins: parseInt(document.getElementById("cb_tBins").value),
+					t_max: parseFloat(document.getElementById("cb_tMax").value),
+					t_min: parseFloat(document.getElementById("cb_tMin").value),
+				};
+
+				createNewTab({service: 'Download', context: '', request: {ChronoboxPlot: {run_number: {{ run_number }}, args: cb_args}}});
 			}
 		</script>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
