@@ -114,11 +114,11 @@
 					  </div>
 					  <div class="mb-3">
 						<label for="TRGtMin" class="form-label">Minimum time (seconds)</label>
-						<input type="numeric" class="form-control" id="TRGtMin" step="any" placeholder="Optional">
+						<input type="numeric" class="form-control" id="TRGtMin" placeholder="Optional">
 					  </div>
 					  <div class="mb-3">
 						<label for="TRGtMax" class="form-label">Maximum time (seconds)</label>
-						<input type="numeric" class="form-control" id="TRGtMax" step="any" placeholder="Optional">
+						<input type="numeric" class="form-control" id="TRGtMax" placeholder="Optional">
 					  </div>
 					  <div class="mb-3 form-check">
 						<input type="checkbox" class="form-check-input"	id="TRGInput" checked>
@@ -151,6 +151,86 @@
 		  </div>
 		</div>
 
+		<div class="modal fade" id="vtxOptions" tabindex="-1" aria-labelledby="vtxOptionModal" aria-hidden="true">
+		  <div class="modal-dialog modal-dialog-centered">
+			<div class="modal-content">
+			  <div class="modal-header">
+				<h1 class="modal-title fs-5" id="vtxOptionsModalLabel">Vertex Plot Options</h1>
+				<button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+			  </div>
+			  <div class="modal-body">
+				<form id="vtxOptionsForm">
+				  <div class="row">
+					<div class="col-md-6 mb-3">
+					  <h5>Phi Axis</h5>
+					  <div class="mb-2">
+						<label for="phi_bins" class="form-label">Number of Bins</label>
+						<input type="numeric" class="form-control" id="phi_bins" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="phi_min" class="form-label">Min Value</label>
+						<input type="numeric" class="form-control" id="phi_min" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="phi_max" class="form-label">Max Value</label>
+						<input type="numeric" class="form-control" id="phi_max" placeholder="Optional">
+					  </div>
+					</div>
+					<div class="col-md-6 mb-3">
+					  <h5>R Axis</h5>
+					  <div class="mb-2">
+						<label for="r_bins" class="form-label">Number of Bins</label>
+						<input type="numeric" class="form-control" id="r_bins" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="r_min" class="form-label">Min Value</label>
+						<input type="numeric" class="form-control" id="r_min" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="r_max" class="form-label">Max Value</label>
+						<input type="numeric" class="form-control" id="r_max" placeholder="Optional">
+					  </div>
+					</div>
+					<div class="col-md-6 mb-3">
+					  <h5>T Axis</h5>
+					  <div class="mb-2">
+						<label for="t_bins" class="form-label">Number of Bins</label>
+						<input type="numeric" class="form-control" id="t_bins" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="t_min" class="form-label">Min Value</label>
+						<input type="numeric" class="form-control" id="t_min" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="t_max" class="form-label">Max Value</label>
+						<input type="numeric" class="form-control" id="t_max" placeholder="Optional">
+					  </div>
+					</div>
+					<div class="col-md-6 mb-3">
+					  <h5>Z Axis</h5>
+					  <div class="mb-2">
+						<label for="z_bins" class="form-label">Number of Bins</label>
+						<input type="numeric" class="form-control" id="z_bins" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="z_min" class="form-label">Min Value</label>
+						<input type="numeric" class="form-control" id="z_min" placeholder="Optional">
+					  </div>
+					  <div class="mb-2">
+						<label for="z_max" class="form-label">Max Value</label>
+						<input type="numeric" class="form-control" id="z_max" placeholder="Optional">
+					  </div>
+					</div>
+				  </div>
+				</form>
+			  </div>
+			  <div class="modal-footer">
+				<button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+				<button type="button" class="btn btn-primary" data-bs-dismiss="modal" onclick="requestVtxPlot()">Download</button>
+			  </div>
+			</div>
+		  </div>
+		</div>
 
 		<div class="container mt-5">
 			<ul class="nav nav-tabs" id="commandTabs" role="tablist">
@@ -284,6 +364,25 @@
 				};
 
 				createNewTab({service: 'Download', context: '', request: {TrgScalersPlot: {run_number: {{ run_number }}, args: trg_args}}});
+			}
+
+			function requestVtxPlot() {
+				const vtx_args = {
+					phi_bins: parseInt(document.getElementById("phi_bins").value),
+					phi_max: parseFloat(document.getElementById("phi_max").value),
+					phi_min: parseFloat(document.getElementById("phi_min").value),
+					r_bins: parseInt(document.getElementById("r_bins").value),
+					r_max: parseFloat(document.getElementById("r_max").value),
+					r_min: parseFloat(document.getElementById("r_min").value),
+					t_bins: parseInt(document.getElementById("t_bins").value),
+					t_max: parseFloat(document.getElementById("t_max").value),
+					t_min: parseFloat(document.getElementById("t_min").value),
+					z_bins: parseInt(document.getElementById("z_bins").value),
+					z_max: parseFloat(document.getElementById("z_max").value),
+					z_min: parseFloat(document.getElementById("z_min").value),
+				};
+
+				createNewTab({service: 'Download', context: '', request: {VerticesPlot: {run_number: {{ run_number }}, args: vtx_args}}});
 			}
 		</script>
 		<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js" integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz" crossorigin="anonymous"></script>
