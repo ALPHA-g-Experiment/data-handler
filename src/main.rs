@@ -5,7 +5,7 @@ use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
 use axum::extract::{self, State};
 use axum::http::{header, HeaderMap, StatusCode};
-use axum::response::{IntoResponse, Response};
+use axum::response::{Html, IntoResponse, Response};
 use axum::{routing::get, Router};
 use clap::Parser;
 use futures::{sink::SinkExt, stream::StreamExt};
@@ -58,7 +58,7 @@ async fn main() -> Result<(), anyhow::Error> {
 
     let app_state = Arc::new(AppState::default());
     let app = Router::new()
-        .route("/", get(|| async { "Hello, World!" }))
+        .route("/", get(index))
         .route("/:run_number", get(run_info))
         .route("/ws", get(websocket_handler))
         .route("/download/:token", get(download_handler))
@@ -72,6 +72,10 @@ async fn main() -> Result<(), anyhow::Error> {
         .context("failed to start server")?;
 
     Ok(())
+}
+
+async fn index() -> Html<&'static str> {
+    Html(std::include_str!("../assets/index.html"))
 }
 
 async fn run_info(
