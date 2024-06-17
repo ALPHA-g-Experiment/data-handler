@@ -64,7 +64,18 @@
 					Download
 				</button>
 				<ul class="dropdown-menu">
-					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})" href="#!">Chronobox Timestamps</a></li>
+					<li class="dropend">
+						<a type="button" class="dropdown-item dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+							Chronobox Timestamps
+						</a>
+						<ul class="dropdown-menu sub-menu">
+							<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})" href="#!">CSV</a></li>
+							<li><a class="dropdown-item" type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#cbOptions">
+									Plot
+								</a>
+							</li>
+						</ul>
+					</li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {InitialOdb: {run_number: {{ run_number }} }}})" href="#!">Initial ODB</a></li>
 					<li><a class="dropdown-item" onclick="createNewTab({service: 'Download', context: '', request: {SequencerEvents: {run_number: {{ run_number }} }}})" href="#!">Sequencer Events</a></li>
 					<li class="dropend">
