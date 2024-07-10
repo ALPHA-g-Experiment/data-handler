@@ -12,6 +12,7 @@ use futures::{sink::SinkExt, stream::StreamExt};
 use jsonwebtoken::{decode, DecodingKey, Validation};
 use std::sync::Arc;
 use tokio::{fs, sync::mpsc};
+use tower_http::services::ServeDir;
 
 mod communication;
 mod core_command;
@@ -62,6 +63,10 @@ async fn main() -> Result<(), anyhow::Error> {
         .route("/:run_number", get(run_info))
         .route("/ws", get(websocket_handler))
         .route("/download/:token", get(download_handler))
+        .nest_service(
+            "/assets",
+            ServeDir::new(env!("CARGO_MANIFEST_DIR").to_owned() + "/assets"),
+        )
         .with_state(app_state);
 
     let listener = tokio::net::TcpListener::bind(args.addr)
