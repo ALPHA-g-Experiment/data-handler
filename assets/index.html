@@ -32,11 +32,9 @@
     </div>
     <script>
       function loadUrl() {
-        var baseUrl = window.location.origin;
-        var searchInput = document.getElementById("search-input").value;
+        const searchInput = document.getElementById("search-input").value;
         if (searchInput) {
-          window.location.href =
-            baseUrl + "/" + encodeURIComponent(searchInput);
+          window.location.href = "./" + encodeURIComponent(searchInput);
         }
       }
 
