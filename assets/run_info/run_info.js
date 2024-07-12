@@ -9,7 +9,9 @@ document.querySelectorAll(".dropdown-menu a").forEach(function (element) {
   }
 });
 
-const ws = new WebSocket("ws://" + window.location.host + "/ws");
+const loc = window.location;
+const protocol = loc.protocol === "https:" ? "wss:" : "ws:";
+const ws = new WebSocket(protocol + "//" + loc.host + loc.pathname + "/../ws");
 
 ws.onopen = function () {
   button = document.getElementById("downloadButton");
@@ -38,7 +40,7 @@ ws.onmessage = function (event) {
         output.textContent += msg.response.Error + "\n";
       } else if (msg.response.DownloadJWT) {
         var a = document.createElement("a");
-        a.href = "/download/" + msg.response.DownloadJWT;
+        a.href = "./download/" + msg.response.DownloadJWT;
         a.setAttribute("download", "");
         a.click();
 
@@ -50,9 +52,10 @@ ws.onmessage = function (event) {
 };
 
 function loadUrl() {
-  var baseUrl = window.location.origin;
-  var searchInput = document.getElementById("search-input").value;
-  window.location.href = baseUrl + "/" + encodeURIComponent(searchInput);
+  const searchInput = document.getElementById("search-input").value;
+  if (searchInput) {
+    window.location.href = "./" + encodeURIComponent(searchInput);
+  }
 }
 
 document.getElementById("load-button").addEventListener("click", loadUrl);
