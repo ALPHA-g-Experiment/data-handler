@@ -97,18 +97,26 @@ impl CoreCmd {
     }
 
     async fn to_command(self) -> Result<Command> {
-        let mut cmd = match self.bin {
-            CoreBin::ChronoboxTimestamps => Command::new("alpha-g-chronobox-timestamps"),
-            CoreBin::InitialOdb => Command::new("alpha-g-odb"),
-            CoreBin::FinalOdb => {
-                let mut cmd = Command::new("alpha-g-odb");
-                cmd.arg("--final");
-                cmd
-            }
-            CoreBin::Sequencer => Command::new("alpha-g-sequencer"),
-            CoreBin::TrgScalers => Command::new("alpha-g-trg-scalers"),
-            CoreBin::Vertices => Command::new("alpha-g-vertices"),
-        };
+        let base_dirs = directories::BaseDirs::new().context("failed to get base directories")?;
+
+        let mut cmd = Command::new(
+            base_dirs
+                .home_dir()
+                .join(".alpha-g-data-handler")
+                .join("rust")
+                .join("bin")
+                .join(match self.bin {
+                    CoreBin::ChronoboxTimestamps => "alpha-g-chronobox-timestamps",
+                    CoreBin::InitialOdb => "alpha-g-odb",
+                    CoreBin::FinalOdb => "alpha-g-odb",
+                    CoreBin::Sequencer => "alpha-g-sequencer",
+                    CoreBin::TrgScalers => "alpha-g-trg-scalers",
+                    CoreBin::Vertices => "alpha-g-vertices",
+                }),
+        );
+        if let CoreBin::FinalOdb = self.bin {
+            cmd.arg("--final");
+        }
 
         let mut midas_files = midas_files(self.run_number)
             .await
