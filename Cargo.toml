@@ -13,6 +13,7 @@ axum = { version = "0.7.5", features = ["ws"] }
 clap = { version = "4.5.4", features = ["derive"] }
 directories = "5.0.1"
 futures = "0.3.30"
+indicatif = "0.17.8"
 jsonwebtoken = "9.3.0"
 rand = "0.8.5"
 serde = { version = "1.0.203", features = ["derive"] }

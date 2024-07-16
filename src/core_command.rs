@@ -7,6 +7,39 @@ use tokio::fs;
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot};
 
+// Install the latest (compatible) version of the core binaries to
+// `$HOME/.alpha-g-data-handler/rust/bin`.
+//
+// It is better to handle our own installation of the binaries instead of
+// asking the user to do it and have them in $PATH. This way there is no risk of
+// the user having a version not compatible with our UI. Furthermore, this
+// allows users to have (and play around) with the latest (or different) CLI
+// versions of the analysis without interfering with the data handler.
+pub(super) fn install_core_binaries() -> Result<()> {
+    // Use `cargo install` because it is currently the only way that the
+    // `alpha-g-analysis` package instructs users to install the binaries.
+    let cargo_home = directories::BaseDirs::new()
+        .context("failed to get base directories")?
+        .home_dir()
+        .join(".alpha-g-data-handler")
+        .join("rust");
+
+    let status = std::process::Command::new("cargo")
+        .arg("install")
+        .arg("--quiet")
+        .arg("--locked")
+        .arg("--root")
+        .arg(cargo_home)
+        // Only install the newest version that is semver compatible with
+        // whatever was used for development.
+        .arg("alpha-g-analysis@^0.5.4")
+        .status()
+        .context("failed to execute `cargo install`")?;
+    ensure!(status.success(), "`cargo install` failed with `{status}`");
+
+    Ok(())
+}
+
 // This is set (only once) at the beginning of the program based on the CLI
 // arguments.
 // Throughout the module it should be assumed to be set.
