@@ -1,6 +1,7 @@
 use crate::PROJECT_HOME;
 use anyhow::{ensure, Context, Result};
 use rand::distributions::{Alphanumeric, DistString};
+use semver::{Version, VersionReq};
 use serde::Deserialize;
 use std::{fmt, path::PathBuf};
 use tokio::{fs, process::Command};
@@ -28,8 +29,18 @@ fn analysis_scripts_dir() -> PathBuf {
 // Additionally, doing this instead of embedding the scripts in the binary
 // allows us to update the scripts without having to recompile the program.
 pub(super) fn setup_analysis_scripts() -> Result<()> {
+    // Only install the latest version that is semver compatible with whatever
+    // was tested during development.
+    let req = VersionReq::parse("^0.1.0").unwrap();
     // The analysis-scripts repo doesn't provide (so far) pre-built interpreters,
     // etc. Hence just follow the instructions in the README.
+    //
+    // I don't want to manage a git repo through std::Command invocations. It is
+    // easier to just delete and re-clone every time. This is a temporary
+    // solution until there is a proper way of installing a pre-built
+    // interpreter and the scripts.
+    let _ = std::fs::remove_dir_all(PROJECT_HOME.get().unwrap().join("analysis-scripts"));
+
     let output = std::process::Command::new("git")
         .arg("clone")
         .arg("https://github.com/ALPHA-g-Experiment/analysis-scripts.git")
@@ -37,6 +48,29 @@ pub(super) fn setup_analysis_scripts() -> Result<()> {
         .output()
         .context("failed to execute `git clone`")?;
     ensure!(output.status.success(), "`git clone` failed");
+
+    let output = std::process::Command::new("git")
+        .args(["tag", "--list", "--sort=-v:refname", "v*"])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `git tag --list --sort=-v:refname v*`")?;
+    ensure!(output.status.success(), "`git tag --list` failed");
+    let tag = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .find(|tag| {
+            Version::parse(&tag[1..])
+                .map(|version| req.matches(&version))
+                .unwrap_or(false)
+        })
+        .unwrap()
+        .to_string();
+
+    let output = std::process::Command::new("git")
+        .args(["checkout", &tag])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `git checkout`")?;
+    ensure!(output.status.success(), "`git checkout` failed");
 
     let output = std::process::Command::new("python3")
         .args(["-m", "venv", ".venv"])
