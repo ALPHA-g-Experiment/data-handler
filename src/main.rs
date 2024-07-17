@@ -2,6 +2,7 @@ use crate::communication::{handle_client_message, Claims};
 use crate::core_command::{
     install_core_binaries, spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd,
 };
+use crate::secondary_script::setup_analysis_scripts;
 use crate::templates::RunInfoTemplate;
 use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -13,7 +14,8 @@ use clap::{Parser, Subcommand};
 use futures::{sink::SinkExt, stream::StreamExt};
 use indicatif::{ProgressBar, ProgressStyle};
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 use tokio::{fs, sync::mpsc};
 use tower_http::services::ServeDir;
 
@@ -21,6 +23,8 @@ mod communication;
 mod core_command;
 mod secondary_script;
 mod templates;
+
+static PROJECT_HOME: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Parser)]
 /// Web application for the ALPHA-g experiment
@@ -67,6 +71,15 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
+    PROJECT_HOME
+        .set(
+            directories::BaseDirs::new()
+                .context("failed to get base directories")?
+                .home_dir()
+                .join(".alpha-g-data-handler"),
+        )
+        .expect("failed to set PROJECT_HOME");
+
     let cli = Cli::parse();
 
     match cli.command {
@@ -77,6 +90,9 @@ async fn main() -> Result<(), anyhow::Error> {
 
             spinner.set_message("Installing core binaries...");
             install_core_binaries().context("failed to install core binaries")?;
+
+            spinner.set_message("Setting up analysis scripts...");
+            setup_analysis_scripts().context("failed to set up analysis scripts")?;
 
             spinner.finish_and_clear();
         }

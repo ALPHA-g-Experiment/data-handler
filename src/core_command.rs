@@ -1,3 +1,4 @@
+use crate::PROJECT_HOME;
 use anyhow::{ensure, Context, Result};
 use std::collections::{hash_map::Entry, HashMap};
 use std::path::PathBuf;
@@ -8,7 +9,7 @@ use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot};
 
 // Install the latest (compatible) version of the core binaries to
-// `$HOME/.alpha-g-data-handler/rust/bin`.
+// `PROJECT_HOME/rust/bin`.
 //
 // It is better to handle our own installation of the binaries instead of
 // asking the user to do it and have them in $PATH. This way there is no risk of
@@ -18,11 +19,7 @@ use tokio::sync::{mpsc, oneshot};
 pub(super) fn install_core_binaries() -> Result<()> {
     // Use `cargo install` because it is currently the only way that the
     // `alpha-g-analysis` package instructs users to install the binaries.
-    let cargo_home = directories::BaseDirs::new()
-        .context("failed to get base directories")?
-        .home_dir()
-        .join(".alpha-g-data-handler")
-        .join("rust");
+    let cargo_home = PROJECT_HOME.get().unwrap().join("rust");
 
     let status = std::process::Command::new("cargo")
         .arg("install")
@@ -130,23 +127,16 @@ impl CoreCmd {
     }
 
     async fn to_command(self) -> Result<Command> {
-        let base_dirs = directories::BaseDirs::new().context("failed to get base directories")?;
-
-        let mut cmd = Command::new(
-            base_dirs
-                .home_dir()
-                .join(".alpha-g-data-handler")
-                .join("rust")
-                .join("bin")
-                .join(match self.bin {
-                    CoreBin::ChronoboxTimestamps => "alpha-g-chronobox-timestamps",
-                    CoreBin::InitialOdb => "alpha-g-odb",
-                    CoreBin::FinalOdb => "alpha-g-odb",
-                    CoreBin::Sequencer => "alpha-g-sequencer",
-                    CoreBin::TrgScalers => "alpha-g-trg-scalers",
-                    CoreBin::Vertices => "alpha-g-vertices",
-                }),
-        );
+        let mut cmd = Command::new(PROJECT_HOME.get().unwrap().join("rust").join("bin").join(
+            match self.bin {
+                CoreBin::ChronoboxTimestamps => "alpha-g-chronobox-timestamps",
+                CoreBin::InitialOdb => "alpha-g-odb",
+                CoreBin::FinalOdb => "alpha-g-odb",
+                CoreBin::Sequencer => "alpha-g-sequencer",
+                CoreBin::TrgScalers => "alpha-g-trg-scalers",
+                CoreBin::Vertices => "alpha-g-vertices",
+            },
+        ));
         if let CoreBin::FinalOdb = self.bin {
             cmd.arg("--final");
         }
