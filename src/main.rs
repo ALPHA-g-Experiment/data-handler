@@ -1,5 +1,8 @@
 use crate::communication::{handle_client_message, Claims};
-use crate::core_command::{spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd};
+use crate::core_command::{
+    install_core_binaries, spawn_core_command, wait_core_command, AppState, CoreBin, CoreCmd,
+};
+use crate::secondary_script::setup_analysis_scripts;
 use crate::templates::RunInfoTemplate;
 use anyhow::Context;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
@@ -7,10 +10,12 @@ use axum::extract::{self, State};
 use axum::http::{header, HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Response};
 use axum::{routing::get, Router};
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use futures::{sink::SinkExt, stream::StreamExt};
+use indicatif::{ProgressBar, ProgressStyle};
 use jsonwebtoken::{decode, DecodingKey, Validation};
-use std::sync::Arc;
+use std::path::PathBuf;
+use std::sync::{Arc, OnceLock};
 use tokio::{fs, sync::mpsc};
 use tower_http::services::ServeDir;
 
@@ -19,14 +24,28 @@ mod core_command;
 mod secondary_script;
 mod templates;
 
+static PROJECT_HOME: OnceLock<PathBuf> = OnceLock::new();
+
 #[derive(Parser)]
-struct Args {
-    /// The address to listen on
-    #[arg(short, long, default_value = "127.0.0.1:8080")]
-    addr: String,
-    /// Path to the MIDAS data directory
-    #[arg(short, long, default_value = ".")]
-    data_dir: std::path::PathBuf,
+/// Web application for the ALPHA-g experiment
+struct Cli {
+    #[command(subcommand)]
+    command: Commands,
+}
+
+#[derive(Subcommand)]
+enum Commands {
+    /// Update all internal analysis programs to the latest supported version
+    Update,
+    /// Start the web server
+    Serve {
+        /// The address to listen on
+        #[arg(short, long, default_value = "127.0.0.1:8080")]
+        address: String,
+        /// Path to the MIDAS data directory
+        #[arg(short, long, default_value = ".")]
+        data_dir: std::path::PathBuf,
+    },
 }
 
 struct AppError(anyhow::Error);
@@ -52,29 +71,56 @@ where
 
 #[tokio::main]
 async fn main() -> Result<(), anyhow::Error> {
-    let args = Args::parse();
-    core_command::MIDAS_DATA_PATH
-        .set(args.data_dir)
-        .expect("failed to set MIDAS_DATA_PATH");
-
-    let app_state = Arc::new(AppState::default());
-    let app = Router::new()
-        .route("/", get(index))
-        .route("/:run_number", get(run_info))
-        .route("/ws", get(websocket_handler))
-        .route("/download/:token", get(download_handler))
-        .nest_service(
-            "/assets",
-            ServeDir::new(env!("CARGO_MANIFEST_DIR").to_owned() + "/assets"),
+    PROJECT_HOME
+        .set(
+            directories::BaseDirs::new()
+                .context("failed to get base directories")?
+                .home_dir()
+                .join(".alpha-g-data-handler"),
         )
-        .with_state(app_state);
+        .expect("failed to set PROJECT_HOME");
 
-    let listener = tokio::net::TcpListener::bind(args.addr)
-        .await
-        .context("failed to create tcp listener")?;
-    axum::serve(listener, app)
-        .await
-        .context("failed to start server")?;
+    let cli = Cli::parse();
+
+    match cli.command {
+        Commands::Update => {
+            let spinner = ProgressBar::new_spinner()
+                .with_style(ProgressStyle::default_spinner().tick_chars("⠁⠂⠄⡀⢀⠠⠐⠈ "));
+            spinner.enable_steady_tick(std::time::Duration::from_millis(100));
+
+            spinner.set_message("Installing core binaries...");
+            install_core_binaries().context("failed to install core binaries")?;
+
+            spinner.set_message("Setting up analysis scripts...");
+            setup_analysis_scripts().context("failed to set up analysis scripts")?;
+
+            spinner.finish_and_clear();
+        }
+        Commands::Serve { address, data_dir } => {
+            core_command::MIDAS_DATA_PATH
+                .set(data_dir)
+                .expect("failed to set MIDAS_DATA_PATH");
+
+            let app_state = Arc::new(AppState::default());
+            let app = Router::new()
+                .route("/", get(index))
+                .route("/:run_number", get(run_info))
+                .route("/ws", get(websocket_handler))
+                .route("/download/:token", get(download_handler))
+                .nest_service(
+                    "/assets",
+                    ServeDir::new(env!("CARGO_MANIFEST_DIR").to_owned() + "/assets"),
+                )
+                .with_state(app_state);
+
+            let listener = tokio::net::TcpListener::bind(address)
+                .await
+                .context("failed to create tcp listener")?;
+            axum::serve(listener, app)
+                .await
+                .context("failed to start server")?;
+        }
+    }
 
     Ok(())
 }

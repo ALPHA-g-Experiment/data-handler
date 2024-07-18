@@ -1,3 +1,4 @@
+use crate::PROJECT_HOME;
 use anyhow::{ensure, Context, Result};
 use std::collections::{hash_map::Entry, HashMap};
 use std::path::PathBuf;
@@ -6,6 +7,35 @@ use std::sync::{Arc, OnceLock};
 use tokio::fs;
 use tokio::process::{Child, Command};
 use tokio::sync::{mpsc, oneshot};
+
+// Install the latest (compatible) version of the core binaries to
+// `PROJECT_HOME/rust/bin`.
+//
+// It is better to handle our own installation of the binaries instead of
+// asking the user to do it and have them in $PATH. This way there is no risk of
+// the user having a version not compatible with our UI. Furthermore, this
+// allows users to have (and play around) with the latest (or different) CLI
+// versions of the analysis without interfering with the data handler.
+pub(super) fn install_core_binaries() -> Result<()> {
+    // Use `cargo install` because it is currently the only way that the
+    // `alpha-g-analysis` package instructs users to install the binaries.
+    let cargo_home = PROJECT_HOME.get().unwrap().join("rust");
+
+    let status = std::process::Command::new("cargo")
+        .arg("install")
+        .arg("--quiet")
+        .arg("--locked")
+        .arg("--root")
+        .arg(cargo_home)
+        // Only install the newest version that is semver compatible with
+        // whatever was used for development.
+        .arg("alpha-g-analysis@^0.5.4")
+        .status()
+        .context("failed to execute `cargo install`")?;
+    ensure!(status.success(), "`cargo install` failed with `{status}`");
+
+    Ok(())
+}
 
 // This is set (only once) at the beginning of the program based on the CLI
 // arguments.
@@ -97,18 +127,19 @@ impl CoreCmd {
     }
 
     async fn to_command(self) -> Result<Command> {
-        let mut cmd = match self.bin {
-            CoreBin::ChronoboxTimestamps => Command::new("alpha-g-chronobox-timestamps"),
-            CoreBin::InitialOdb => Command::new("alpha-g-odb"),
-            CoreBin::FinalOdb => {
-                let mut cmd = Command::new("alpha-g-odb");
-                cmd.arg("--final");
-                cmd
-            }
-            CoreBin::Sequencer => Command::new("alpha-g-sequencer"),
-            CoreBin::TrgScalers => Command::new("alpha-g-trg-scalers"),
-            CoreBin::Vertices => Command::new("alpha-g-vertices"),
-        };
+        let mut cmd = Command::new(PROJECT_HOME.get().unwrap().join("rust").join("bin").join(
+            match self.bin {
+                CoreBin::ChronoboxTimestamps => "alpha-g-chronobox-timestamps",
+                CoreBin::InitialOdb => "alpha-g-odb",
+                CoreBin::FinalOdb => "alpha-g-odb",
+                CoreBin::Sequencer => "alpha-g-sequencer",
+                CoreBin::TrgScalers => "alpha-g-trg-scalers",
+                CoreBin::Vertices => "alpha-g-vertices",
+            },
+        ));
+        if let CoreBin::FinalOdb = self.bin {
+            cmd.arg("--final");
+        }
 
         let mut midas_files = midas_files(self.run_number)
             .await

@@ -1,10 +1,99 @@
+use crate::PROJECT_HOME;
 use anyhow::{ensure, Context, Result};
 use rand::distributions::{Alphanumeric, DistString};
+use semver::{Version, VersionReq};
 use serde::Deserialize;
 use std::{fmt, path::PathBuf};
 use tokio::{fs, process::Command};
 
-const ANALYSIS_SCRIPTS_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/scripts/bin");
+fn python3() -> PathBuf {
+    PROJECT_HOME
+        .get()
+        .unwrap()
+        .join("analysis-scripts")
+        .join(".venv")
+        .join("bin")
+        .join("python3")
+}
+
+fn analysis_scripts_dir() -> PathBuf {
+    PROJECT_HOME
+        .get()
+        .unwrap()
+        .join("analysis-scripts")
+        .join("bin")
+}
+// Instead of asking users to manually install dependencies and all scripts in a
+// specific folder, we can handle this ourselves. This way we also
+// avoid potential conflicts with non-supported versions of the scripts, etc.
+// Additionally, doing this instead of embedding the scripts in the binary
+// allows us to update the scripts without having to recompile the program.
+pub(super) fn setup_analysis_scripts() -> Result<()> {
+    // Only install the latest version that is semver compatible with whatever
+    // was tested during development.
+    let req = VersionReq::parse("^0.1.0").unwrap();
+    // The analysis-scripts repo doesn't provide (so far) pre-built interpreters,
+    // etc. Hence just follow the instructions in the README.
+    //
+    // I don't want to manage a git repo through std::Command invocations. It is
+    // easier to just delete and re-clone every time. This is a temporary
+    // solution until there is a proper way of installing a pre-built
+    // interpreter and the scripts.
+    let _ = std::fs::remove_dir_all(PROJECT_HOME.get().unwrap().join("analysis-scripts"));
+
+    let output = std::process::Command::new("git")
+        .arg("clone")
+        .arg("https://github.com/ALPHA-g-Experiment/analysis-scripts.git")
+        .current_dir(PROJECT_HOME.get().unwrap())
+        .output()
+        .context("failed to execute `git clone`")?;
+    ensure!(output.status.success(), "`git clone` failed");
+
+    let output = std::process::Command::new("git")
+        .args(["tag", "--list", "--sort=-v:refname", "v*"])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `git tag --list --sort=-v:refname v*`")?;
+    ensure!(output.status.success(), "`git tag --list` failed");
+    let tag = String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .find(|tag| {
+            Version::parse(&tag[1..])
+                .map(|version| req.matches(&version))
+                .unwrap_or(false)
+        })
+        .unwrap()
+        .to_string();
+
+    let output = std::process::Command::new("git")
+        .args(["checkout", &tag])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `git checkout`")?;
+    ensure!(output.status.success(), "`git checkout` failed");
+
+    let output = std::process::Command::new("python3")
+        .args(["-m", "venv", ".venv"])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `python3 -m venv .venv`")?;
+    ensure!(output.status.success(), "`python3 -m venv .venv` failed");
+
+    let output = std::process::Command::new(python3())
+        .args(["-m", "pip", "install", "--upgrade", "pip"])
+        .output()
+        .context("failed to execute `python3 -m pip install --upgrade pip`")?;
+    ensure!(output.status.success(), "`pip upgrade` failed");
+
+    let output = std::process::Command::new(python3())
+        .args(["-m", "pip", "install", "-r", "requirements.txt"])
+        .current_dir(PROJECT_HOME.get().unwrap().join("analysis-scripts"))
+        .output()
+        .context("failed to execute `python3 -m pip install -r requirements.txt`")?;
+    ensure!(output.status.success(), "`install requirements.txt` failed");
+
+    Ok(())
+}
 
 pub trait SecondaryScript: fmt::Display {
     // Secondary scripts can be wildly different. We can even start adding
@@ -53,8 +142,8 @@ impl SecondaryScript for Sequencer {
             .context("failed to create temporary directory")?
             .join(output);
 
-        let status = Command::new("python3")
-            .arg(PathBuf::from(ANALYSIS_SCRIPTS_DIR).join(self.to_string()))
+        let status = Command::new(python3())
+            .arg(analysis_scripts_dir().join(self.to_string()))
             .arg(&self.sequencer_csv)
             .arg("--odb-json")
             .arg(&self.initial_odb_json)
@@ -98,8 +187,8 @@ impl SecondaryScript for ChronoboxTimestamps {
             .context("failed to create temporary directory")?
             .join(output);
 
-        let mut cmd = Command::new("python3");
-        cmd.arg(PathBuf::from(ANALYSIS_SCRIPTS_DIR).join(self.to_string()))
+        let mut cmd = Command::new(python3());
+        cmd.arg(analysis_scripts_dir().join(self.to_string()))
             .arg(&self.csv)
             .arg(&self.args.board_name)
             .arg(&self.args.channel_number.to_string())
@@ -155,8 +244,8 @@ impl SecondaryScript for TrgScalers {
             .context("failed to create temporary directory")?
             .join(output);
 
-        let mut cmd = Command::new("python3");
-        cmd.arg(PathBuf::from(ANALYSIS_SCRIPTS_DIR).join(self.to_string()))
+        let mut cmd = Command::new(python3());
+        cmd.arg(analysis_scripts_dir().join(self.to_string()))
             .arg(&self.csv)
             .arg("--output")
             .arg(&output);
@@ -229,8 +318,8 @@ impl SecondaryScript for Vertices {
             .context("failed to create temporary directory")?
             .join(output);
 
-        let mut cmd = Command::new("python3");
-        cmd.arg(PathBuf::from(ANALYSIS_SCRIPTS_DIR).join(self.to_string()))
+        let mut cmd = Command::new(python3());
+        cmd.arg(analysis_scripts_dir().join(self.to_string()))
             .arg(&self.csv)
             .arg("--output")
             .arg(&output);
