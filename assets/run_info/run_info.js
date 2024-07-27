@@ -128,6 +128,41 @@ function newDownload(jsonMessage) {
   tabCounter++;
 }
 
+new TomSelect("#chronoboxChannel", {
+  maxOptions: null,
+  selectOnTab: true,
+});
+
+function updateChronoboxMaxTimeReq() {
+  document.getElementById("chronoboxMaxT").min =
+    document.getElementById("chronoboxMinT").value;
+}
+
+function chronoboxPlot() {
+  updateChronoboxMaxTimeReq();
+
+  if (!document.getElementById("chronoboxForm").reportValidity()) {
+    return;
+  }
+
+  const channel = JSON.parse(document.getElementById("chronoboxChannel").value);
+  const chronoboxArgs = {
+    board_name: channel.board,
+    channel_number: parseInt(channel.number),
+    t_bins: parseInt(document.getElementById("chronoboxBins").value),
+    t_max: parseFloat(document.getElementById("chronoboxMaxT").value),
+    t_min: parseFloat(document.getElementById("chronoboxMinT").value),
+  };
+
+  newDownload({
+    service: "Download",
+    context: "",
+    request: { ChronoboxPlot: { run_number: RUN_NUMBER, args: chronoboxArgs } },
+  });
+
+  bootstrap.Modal.getInstance(document.getElementById("chronoboxModal")).hide();
+}
+
 function updateTrgMaxTimeReq() {
   document.getElementById("trgMaxT").min =
     document.getElementById("trgMinT").value;

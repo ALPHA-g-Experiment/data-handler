@@ -5,10 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ALPHA-g data handler</title>
     <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/css/bootstrap.min.css"
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
-      integrity="sha384-rbsA2VBKQhggwzxH7pPCaAqO46MgnOM80zW1RWuH61DGLwZJEdK2Kadq2F9CUG65"
+      integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css"
+      rel="stylesheet"
     />
     <link
       rel="stylesheet"
@@ -250,6 +254,107 @@
       <div class="tab-content" id="downloadTabsContent"></div>
     </div>
 
+    <div class="modal fade" id="chronoboxModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-2">Chronobox Timestamps</h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+
+          <div class="modal-body mb-4">
+            <form class="container was-validated" id="chronoboxForm">
+              <div class="row mb-4">
+                <label for="chronoboxChannel" class="col-form-label col-2"
+                  >Channel:</label
+                >
+                <div class="col px-auto">
+                  <select
+                    class="form-select"
+                    id="chronoboxChannel"
+                    placeholder="e.g. SiPM_A"
+                    required
+                  >
+                    <option value="" selected></option>
+                    <!--
+                      The order and labels for these options are set in the
+                      `src/templates.rs` file.
+                     -->
+                    {% for channel in cb_channels %} {% if let Some(label) =
+                    Self::cb_label_at(self, loop.index0) %}
+                    <option value="{{ channel|json }}">{{ label }}</option>
+                    {% endif %} {% endfor %}
+                  </select>
+                </div>
+              </div>
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Time Axis:</legend>
+                <div class="col">
+                  <label for="chronoboxMinT" class="form-label">Min [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxMinT"
+                    value="0.0"
+                    min="0.0"
+                    step="any"
+                    oninput="updateChronoboxMaxTimeReq()"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="chronoboxMaxT" class="form-label">Max [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxMaxT"
+                    min="0.0"
+                    step="any"
+                  />
+                  <div class="form-text">Leave empty for end of run</div>
+                  <div class="invalid-feedback">Invalid max time</div>
+                </div>
+                <div class="col">
+                  <label for="chronoboxBins" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxBins"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="chronoboxDownloadBtn"
+              onclick="chronoboxPlot()"
+            >
+              Download
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="modal fade" id="trgModal" tabindex="-1">
       <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -262,7 +367,7 @@
             ></button>
           </div>
 
-          <div class="modal-body">
+          <div class="modal-body mb-4">
             <form class="container was-validated" id="trgForm">
               <fieldset class="row mb-4">
                 <legend class="col-form-label col-2 pt-0">Time Axis:</legend>
@@ -410,7 +515,7 @@
             ></button>
           </div>
 
-          <div class="modal-body">
+          <div class="modal-body mb-4">
             <form class="container was-validated" id="verticesForm">
               <fieldset class="row">
                 <legend class="col-form-label col-2 pt-0">Z Axis:</legend>
@@ -612,13 +717,14 @@
       </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
       const RUN_NUMBER = {{ run_number }};
     </script>
     <script src="./assets/run_info/run_info.js"></script>
     <script
-      src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.3/dist/js/bootstrap.bundle.min.js"
-      integrity="sha384-kenU1KFdBIe4zVF0s0G1M5b4hcpxyD9F7jL+jjXkk+Q2h455rYXK/7HAuoJl+0I4"
+      src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+      integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
       crossorigin="anonymous"
     ></script>
   </body>
