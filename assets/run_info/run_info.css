@@ -24,10 +24,6 @@
   border-color: var(--bs-border-color) !important;
   background-image: var(--bs-form-select-bg-img) !important;
 }
-.was-validated .form-select:invalid + .ts-wrapper {
-  border-color: var(--bs-border-color) !important;
-  background-image: var(--bs-form-select-bg-img) !important;
-}
 
 .nav-tabs .nav-link.active {
   background-color: var(--bs-light) !important;

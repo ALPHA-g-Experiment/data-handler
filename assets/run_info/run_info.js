@@ -138,10 +138,32 @@ function updateChronoboxMaxTimeReq() {
     document.getElementById("chronoboxMinT").value;
 }
 
+function updateChronoboxDownloadBtnState() {
+  document.getElementById("chronoboxDownloadBtn").disabled = !document
+    .getElementById("chronoboxForm")
+    .checkValidity();
+}
+
+document
+  .querySelectorAll(
+    "#chronoboxForm input, #chronoboxForm select, #chronoboxForm textarea",
+  )
+  .forEach(function (element) {
+    element.addEventListener("input", updateChronoboxDownloadBtnState);
+  });
+
+document
+  .getElementById("chronoboxModal")
+  .addEventListener("show.bs.modal", function () {
+    updateChronoboxMaxTimeReq();
+    updateChronoboxDownloadBtnState();
+  });
+
 function chronoboxPlot() {
   updateChronoboxMaxTimeReq();
 
-  if (!document.getElementById("chronoboxForm").reportValidity()) {
+  if (!document.getElementById("chronoboxForm").checkValidity()) {
+    alert("Please fix all form errors before submitting.");
     return;
   }
 
