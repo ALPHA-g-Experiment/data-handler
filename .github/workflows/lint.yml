@@ -44,4 +44,4 @@ jobs:
     - name: Install prettier
       run: npm install --save-dev --save-exact prettier
     - name: Run prettier
-      run: npx prettier --check '**/*.{js,html}'
+      run: npx prettier --check '**/*.{css,html,js}'

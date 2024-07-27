@@ -3,265 +3,340 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ALPHA-g Data Handler</title>
+    <title>ALPHA-g data handler</title>
     <link
       href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
       rel="stylesheet"
       integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
       crossorigin="anonymous"
     />
-    <style>
-      .btn-close {
-        font-size: 0.6rem;
-        width: 0.75rem;
-        height: 0.75rem;
-        padding: 0.15rem;
-      }
-    </style>
+    <link
+      href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.bootstrap5.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      type="text/css"
+      href="./assets/run_info/run_info.css"
+    />
   </head>
 
   <body>
-    <nav class="navbar bg-body-tertiary">
+    <nav class="navbar navbar-light bg-light mb-5">
       <div class="container">
-        <a class="navbar-brand" href="/">ALPHA-g Data Handler</a>
+        <a class="navbar-brand" href="./">ALPHA-g Data Handler</a>
+
         <div class="d-flex">
-          <input
-            class="form-control me-2"
-            type="search"
-            placeholder="Run number"
-            id="search-input"
-          />
-          <button class="btn btn-outline-success" id="load-button">Load</button>
+          <div class="input-group">
+            <span class="input-group-text">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="bi bi-search"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"
+                ></path>
+              </svg>
+            </span>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Run number (e.g. 9567)"
+              id="searchInput"
+            />
+          </div>
         </div>
       </div>
     </nav>
 
-    <div class="container mt-5">
-      <h1 class="mb-4">Run {{ run_number }}</h1>
-      <div class="row">
-        <div class="col-md-6">
+    <div class="container">
+      <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1>Run {{ run_number }}</h1>
+        <div>
+          <a class="btn btn-light me-1" href="./{{ run_number - 1 }}">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-arrow-left"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M11.854 12.854a.5.5 0 0 1-.708 0l-5-5a.5.5 0 0 1 0-.708l5-5a.5.5 0 1 1 .708.708L7.707 7.5l4.147 4.146a.5.5 0 0 1 0 .708z"
+              />
+            </svg>
+            Prev
+          </a>
+
+          <a class="btn btn-light ms-1" href="./{{ run_number + 1 }}">
+            Next
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="16"
+              height="16"
+              fill="currentColor"
+              class="bi bi-arrow-right"
+              viewBox="0 0 16 16"
+            >
+              <path
+                fill-rule="evenodd"
+                d="M4.146 3.146a.5.5 0 0 1 .708 0l5 5a.5.5 0 0 1 0 .708l-5 5a.5.5 0 0 1-.708-.708L8.293 8 4.146 3.854a.5.5 0 0 1 0-.708z"
+              />
+            </svg>
+          </a>
+        </div>
+      </div>
+
+      <div class="row mb-3">
+        <div class="col-6">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Start Time</h5>
+              <h3 class="card-title">Start Time</h3>
               <p class="card-text">{{ start_time }}</p>
             </div>
           </div>
         </div>
-        <div class="col-md-6">
+        <div class="col-6">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Stop Time</h5>
+              <h3 class="card-title">Stop Time</h3>
               <p class="card-text">{{ stop_time }}</p>
             </div>
           </div>
         </div>
       </div>
-      <div class="row mt-4">
-        <div class="col-md-12">
+
+      <div class="row mb-3">
+        <div class="col-12">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Operator Comment</h5>
+              <h3 class="card-title">Operator Comment</h3>
               <p class="card-text">{{ operator_comment }}</p>
             </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <div class="container mt-5">
-      <div class="dropdown">
+      <div class="dropdown mb-4">
         <button
-          class="btn btn-primary dropdown-toggle"
-          id="downloadButton"
           type="button"
+          class="btn btn-primary dropdown-toggle"
           data-bs-toggle="dropdown"
-          aria-expanded="false"
+          id="downloadButton"
           disabled
         >
           Download
         </button>
+
         <ul class="dropdown-menu">
           <li class="dropend">
-            <a
+            <button
               type="button"
-              class="dropdown-item dropdown-toggle"
+              class="dropdown-item dropdown-toggle d-flex justify-content-between align-items-center"
               data-bs-toggle="dropdown"
-              aria-expanded="false"
             >
-              Chronobox Timestamps
-            </a>
+              Chronobox Timestamps&nbsp;
+            </button>
             <ul class="dropdown-menu sub-menu">
               <li>
-                <a
+                <button
+                  type="button"
                   class="dropdown-item"
-                  onclick="createNewTab({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})"
-                  href="#!"
-                  >CSV</a
+                  onclick="newDownload({service: 'Download', context: '', request: {ChronoboxCsv: {run_number: {{ run_number }} }}})"
                 >
+                  CSV File
+                </button>
               </li>
               <li>
-                <a
-                  class="dropdown-item"
+                <button
                   type="button"
-                  class="btn btn-primary"
+                  class="dropdown-item"
                   data-bs-toggle="modal"
-                  data-bs-target="#cbOptions"
+                  data-bs-target="#chronoboxModal"
                 >
-                  Plot
-                </a>
+                  Plot...
+                </button>
               </li>
             </ul>
           </li>
+
           <li>
-            <a
-              class="dropdown-item"
-              onclick="createNewTab({service: 'Download', context: '', request: {InitialOdb: {run_number: {{ run_number }} }}})"
-              href="#!"
-              >Initial ODB</a
-            >
-          </li>
-          <li>
-            <a
-              class="dropdown-item"
-              onclick="createNewTab({service: 'Download', context: '', request: {SequencerEvents: {run_number: {{ run_number }} }}})"
-              href="#!"
-              >Sequencer Events</a
-            >
-          </li>
-          <li class="dropend">
-            <a
+            <button
               type="button"
-              class="dropdown-item dropdown-toggle"
+              class="dropdown-item"
+              onclick="newDownload({service: 'Download', context: '', request: {InitialOdb: {run_number: {{ run_number }} }}})"
+            >
+              Initial ODB
+            </button>
+          </li>
+
+          <li>
+            <button
+              type="button"
+              class="dropdown-item"
+              onclick="newDownload({service: 'Download', context: '', request: {SequencerEvents: {run_number: {{ run_number }} }}})"
+            >
+              Sequencer Events
+            </button>
+          </li>
+
+          <li class="dropend">
+            <button
+              type="button"
+              class="dropdown-item dropdown-toggle d-flex justify-content-between align-items-center"
               data-bs-toggle="dropdown"
-              aria-expanded="false"
             >
               TRG Scalers
-            </a>
+            </button>
             <ul class="dropdown-menu sub-menu">
               <li>
-                <a
+                <button
+                  type="button"
                   class="dropdown-item"
-                  onclick="createNewTab({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }}}}})"
-                  href="#!"
-                  >CSV</a
+                  onclick="newDownload({service: 'Download', context: '', request: {TrgScalersCsv: {run_number: {{ run_number }}}}})"
                 >
+                  CSV File
+                </button>
               </li>
               <li>
-                <a
-                  class="dropdown-item"
+                <button
                   type="button"
-                  class="btn btn-primary"
+                  class="dropdown-item"
                   data-bs-toggle="modal"
-                  data-bs-target="#trgOptions"
+                  data-bs-target="#trgModal"
                 >
-                  Plot
-                </a>
+                  Plot...
+                </button>
               </li>
             </ul>
           </li>
+
           <li class="dropend">
-            <a
+            <button
               type="button"
-              class="dropdown-item dropdown-toggle"
+              class="dropdown-item dropdown-toggle d-flex justify-content-between align-items-center"
               data-bs-toggle="dropdown"
-              aria-expanded="false"
             >
               Vertices
-            </a>
+            </button>
             <ul class="dropdown-menu sub-menu">
               <li>
-                <a
+                <button
+                  type="button"
                   class="dropdown-item"
-                  onclick="createNewTab({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})"
-                  href="#!"
-                  >CSV</a
+                  onclick="newDownload({service: 'Download', context: '', request: {VerticesCsv: {run_number: {{ run_number }} }}})"
                 >
+                  CSV File
+                </button>
               </li>
               <li>
-                <a
-                  class="dropdown-item"
+                <button
                   type="button"
-                  class="btn btn-primary"
+                  class="dropdown-item"
                   data-bs-toggle="modal"
-                  data-bs-target="#vtxOptions"
+                  data-bs-target="#verticesModal"
                 >
-                  Plot
-                </a>
+                  Plot...
+                </button>
               </li>
             </ul>
           </li>
         </ul>
       </div>
+
+      <ul class="nav nav-tabs" id="downloadTabs"></ul>
+      <div class="tab-content" id="downloadTabsContent"></div>
     </div>
 
-    <div
-      class="modal fade"
-      id="cbOptions"
-      tabindex="-1"
-      aria-labelledby="cbOptionsModalLabel"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade" id="chronoboxModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5" id="cbOptionsModalLabel">
-              Chronobox Timestamps Plot Options
-            </h1>
+            <h1 class="modal-title fs-2">Chronobox Timestamps</h1>
             <button
               type="button"
               class="btn-close"
               data-bs-dismiss="modal"
-              aria-label="Close"
             ></button>
           </div>
-          <div class="modal-body">
-            <form id="cbOptionsForm">
-              <div class="mb-3">
-                <label for="boardName" class="form-label">Board Name</label>
-                <select class="form-select" id="boardName" required>
-                  <option value="" selected disabled>Select board name</option>
-                  <option value="cb01">cb01</option>
-                  <option value="cb02">cb02</option>
-                  <option value="cb03">cb03</option>
-                  <option value="cb04">cb04</option>
-                </select>
-              </div>
-              <div class="mb-3">
-                <label for="channelNumber" class="form-label"
-                  >Channel Number</label
+
+          <div class="modal-body mb-4">
+            <form class="container was-validated" id="chronoboxForm">
+              <div class="row mb-4">
+                <label for="chronoboxChannel" class="col-form-label col-2"
+                  >Channel:</label
                 >
-                <input
-                  type="number"
-                  class="form-control"
-                  id="channelNumber"
-                  min="0"
-                  max="59"
-                  required
-                />
+                <div class="col px-auto">
+                  <select
+                    class="form-select"
+                    id="chronoboxChannel"
+                    placeholder="e.g. SiPM_A"
+                    required
+                  >
+                    <option value="" selected></option>
+                    <!--
+                      The order and labels for these options are set in the
+                      `src/templates.rs` file.
+                     -->
+                    {% for channel in cb_channels %} {% if let Some(label) =
+                    Self::cb_label_at(self, loop.index0) %}
+                    <option value="{{ channel|json }}">{{ label }}</option>
+                    {% endif %} {% endfor %}
+                  </select>
+                  <div class="invalid-feedback">
+                    Select an option from the list
+                  </div>
+                </div>
               </div>
-              <div class="mb-3">
-                <label for="cb_tBins" class="form-label">Number of Bins</label>
-                <input
-                  type="numeric"
-                  class="form-control"
-                  id="cb_tBins"
-                  min="1"
-                />
-              </div>
-              <div class="mb-3">
-                <label for="cb_tMin" class="form-label"
-                  >Minimum Time (seconds)</label
-                >
-                <input type="numeric" class="form-control" id="cb_tMin" />
-              </div>
-              <div class="mb-3">
-                <label for="cb_tMax" class="form-label"
-                  >Maximum Time (seconds)</label
-                >
-                <input type="numeric" class="form-control" id="cb_tMax" />
-              </div>
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Time Axis:</legend>
+                <div class="col">
+                  <label for="chronoboxMinT" class="form-label">Min [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxMinT"
+                    value="0.0"
+                    min="0.0"
+                    step="any"
+                    oninput="updateChronoboxMaxTimeReq()"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="chronoboxMaxT" class="form-label">Max [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxMaxT"
+                    min="0.0"
+                    step="any"
+                  />
+                  <div class="form-text">Leave empty for end of run</div>
+                  <div class="invalid-feedback">Invalid max time</div>
+                </div>
+                <div class="col">
+                  <label for="chronoboxBins" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="chronoboxBins"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
             </form>
           </div>
+
           <div class="modal-footer">
             <button
               type="button"
@@ -273,8 +348,8 @@
             <button
               type="button"
               class="btn btn-primary"
-              data-bs-dismiss="modal"
-              onclick="requestChronoboxPlot()"
+              id="chronoboxDownloadBtn"
+              onclick="chronoboxPlot()"
             >
               Download
             </button>
@@ -283,292 +358,133 @@
       </div>
     </div>
 
-    <div
-      class="modal fade"
-      id="trgOptions"
-      tabindex="-1"
-      aria-labelledby="trgOptionModal"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
+    <div class="modal fade" id="trgModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
           <div class="modal-header">
-            <h1 class="modal-title fs-5" id="trgOptionsModalLabel">
-              TRG Scalers Plot Options
-            </h1>
+            <h1 class="modal-title fs-2">TRG Scalers</h1>
             <button
               type="button"
               class="btn-close"
               data-bs-dismiss="modal"
-              aria-label="Close"
             ></button>
           </div>
-          <div class="modal-body">
-            <div class="modal-body">
-              <form id="trgOptionsForm">
-                <div class="mb-3">
-                  <label for="TRGtBins" class="form-label"
-                    >Number of bins along time axis</label
-                  >
-                  <input
-                    type="numeric"
-                    class="form-control"
-                    id="TRGtBins"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div class="mb-3">
-                  <label for="TRGtMin" class="form-label"
-                    >Minimum time (seconds)</label
-                  >
-                  <input
-                    type="numeric"
-                    class="form-control"
-                    id="TRGtMin"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div class="mb-3">
-                  <label for="TRGtMax" class="form-label"
-                    >Maximum time (seconds)</label
-                  >
-                  <input
-                    type="numeric"
-                    class="form-control"
-                    id="TRGtMax"
-                    placeholder="Optional"
-                  />
-                </div>
-                <div class="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="TRGInput"
-                    checked
-                  />
-                  <label class="form-check-label" for="TRGInput"
-                    >Input counter</label
-                  >
-                </div>
-                <div class="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="TRGDriftVeto"
-                  />
-                  <label class="form-check-label" for="TRGDriftVeto"
-                    >Drift veto counter</label
-                  >
-                </div>
-                <div class="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="TRGScaleDown"
-                  />
-                  <label class="form-check-label" for="TRGScaleDown"
-                    >Scaledown counter</label
-                  >
-                </div>
-                <div class="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="TRGPulser"
-                  />
-                  <label class="form-check-label" for="TRGPulser"
-                    >Pulser counter</label
-                  >
-                </div>
-                <div class="mb-3 form-check">
-                  <input
-                    type="checkbox"
-                    class="form-check-input"
-                    id="TRGOutput"
-                    checked
-                  />
-                  <label class="form-check-label" for="TRGOutput"
-                    >Output counter</label
-                  >
-                </div>
-              </form>
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button
-              type="button"
-              class="btn btn-secondary"
-              data-bs-dismiss="modal"
-            >
-              Close
-            </button>
-            <button
-              type="button"
-              class="btn btn-primary"
-              data-bs-dismiss="modal"
-              onclick="requestTrgScalersPlot()"
-            >
-              Download
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
 
-    <div
-      class="modal fade"
-      id="vtxOptions"
-      tabindex="-1"
-      aria-labelledby="vtxOptionModal"
-      aria-hidden="true"
-    >
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <h1 class="modal-title fs-5" id="vtxOptionsModalLabel">
-              Vertex Plot Options
-            </h1>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Close"
-            ></button>
-          </div>
-          <div class="modal-body">
-            <form id="vtxOptionsForm">
-              <div class="row">
-                <div class="col-md-6 mb-3">
-                  <h5>Phi Axis</h5>
-                  <div class="mb-2">
-                    <label for="phi_bins" class="form-label"
-                      >Number of Bins</label
-                    >
+          <div class="modal-body mb-4">
+            <form class="container was-validated" id="trgForm">
+              <fieldset class="row mb-4">
+                <legend class="col-form-label col-2 pt-0">Time Axis:</legend>
+                <div class="col">
+                  <label for="trgMinT" class="form-label">Min [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="trgMinT"
+                    value="0.0"
+                    min="0.0"
+                    step="any"
+                    oninput="updateTrgMaxTimeReq()"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="trgMaxT" class="form-label">Max [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="trgMaxT"
+                    min="0.0"
+                    step="any"
+                  />
+                  <div class="form-text">Leave empty for end of run</div>
+                  <div class="invalid-feedback">Invalid max time</div>
+                </div>
+                <div class="col">
+                  <label for="trgBins" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="trgBins"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Scalers:</legend>
+                <div class="col">
+                  <div class="form-check">
+                    <label class="form-check-label" for="trgInput">
+                      Input counter
+                    </label>
                     <input
-                      type="numeric"
-                      class="form-control"
-                      id="phi_bins"
-                      placeholder="Optional"
+                      type="checkbox"
+                      class="form-check-input"
+                      id="trgInput"
+                      name="trgScalerCheckbox"
+                      oninput="updateTrgScalersReq()"
+                      checked
                     />
                   </div>
-                  <div class="mb-2">
-                    <label for="phi_min" class="form-label">Min Value</label>
+                  <div class="form-check">
+                    <label class="form-check-label" for="trgDriftVeto">
+                      Drift veto counter
+                    </label>
                     <input
-                      type="numeric"
-                      class="form-control"
-                      id="phi_min"
-                      placeholder="Optional"
+                      type="checkbox"
+                      class="form-check-input"
+                      id="trgDriftVeto"
+                      name="trgScalerCheckbox"
+                      oninput="updateTrgScalersReq()"
                     />
                   </div>
-                  <div class="mb-2">
-                    <label for="phi_max" class="form-label">Max Value</label>
+                  <div class="form-check">
+                    <label class="form-check-label" for="trgScaledown">
+                      Scaledown counter
+                    </label>
                     <input
-                      type="numeric"
-                      class="form-control"
-                      id="phi_max"
-                      placeholder="Optional"
+                      type="checkbox"
+                      class="form-check-input"
+                      id="trgScaledown"
+                      name="trgScalerCheckbox"
+                      oninput="updateTrgScalersReq()"
                     />
+                  </div>
+                  <div class="form-check">
+                    <label class="form-check-label" for="trgPulser">
+                      Pulser counter
+                    </label>
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      id="trgPulser"
+                      name="trgScalerCheckbox"
+                      oninput="updateTrgScalersReq()"
+                    />
+                  </div>
+                  <div class="form-check">
+                    <label class="form-check-label" for="trgOutput">
+                      Output counter
+                    </label>
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      id="trgOutput"
+                      name="trgScalerCheckbox"
+                      oninput="updateTrgScalersReq()"
+                      checked
+                    />
+                    <div class="invalid-feedback">
+                      Select at least one scaler
+                    </div>
                   </div>
                 </div>
-                <div class="col-md-6 mb-3">
-                  <h5>R Axis</h5>
-                  <div class="mb-2">
-                    <label for="r_bins" class="form-label"
-                      >Number of Bins</label
-                    >
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="r_bins"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="r_min" class="form-label">Min Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="r_min"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="r_max" class="form-label">Max Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="r_max"
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <h5>T Axis</h5>
-                  <div class="mb-2">
-                    <label for="t_bins" class="form-label"
-                      >Number of Bins</label
-                    >
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="t_bins"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="t_min" class="form-label">Min Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="t_min"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="t_max" class="form-label">Max Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="t_max"
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
-                <div class="col-md-6 mb-3">
-                  <h5>Z Axis</h5>
-                  <div class="mb-2">
-                    <label for="z_bins" class="form-label"
-                      >Number of Bins</label
-                    >
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="z_bins"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="z_min" class="form-label">Min Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="z_min"
-                      placeholder="Optional"
-                    />
-                  </div>
-                  <div class="mb-2">
-                    <label for="z_max" class="form-label">Max Value</label>
-                    <input
-                      type="numeric"
-                      class="form-control"
-                      id="z_max"
-                      placeholder="Optional"
-                    />
-                  </div>
-                </div>
-              </div>
+              </fieldset>
             </form>
           </div>
+
           <div class="modal-footer">
             <button
               type="button"
@@ -580,8 +496,8 @@
             <button
               type="button"
               class="btn btn-primary"
-              data-bs-dismiss="modal"
-              onclick="requestVtxPlot()"
+              id="trgDownloadBtn"
+              onclick="trgPlot()"
             >
               Download
             </button>
@@ -590,13 +506,223 @@
       </div>
     </div>
 
-    <div class="container mt-5">
-      <ul class="nav nav-tabs" id="commandTabs" role="tablist"></ul>
-      <div class="tab-content" id="commandTabContent"></div>
+    <div class="modal fade" id="verticesModal" tabindex="-1">
+      <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h1 class="modal-title fs-2">Vertices</h1>
+            <button
+              type="button"
+              class="btn-close"
+              data-bs-dismiss="modal"
+            ></button>
+          </div>
+
+          <div class="modal-body mb-4">
+            <form class="container was-validated" id="verticesForm">
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Z Axis:</legend>
+                <div class="col">
+                  <label for="verticesMinZ" class="form-label">Min [m]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMinZ"
+                    value="-1.152"
+                    min="-1.152"
+                    max="1.152"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesMaxZ" class="form-label">Max [m]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMaxZ"
+                    value="1.152"
+                    min="-1.152"
+                    max="1.152"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesBinsZ" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesBinsZ"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+
+              <hr class="border my-4 opacity-50" />
+
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Radial Axis:</legend>
+                <div class="col">
+                  <label for="verticesMinR" class="form-label">Min [m]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMinR"
+                    value="0.0"
+                    min="0.0"
+                    max="0.19"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesMaxR" class="form-label">Max [m]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMaxR"
+                    value="0.19"
+                    min="0.0"
+                    max="0.19"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesBinsR" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesBinsR"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+
+              <hr class="border my-4 opacity-50" />
+
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Phi Axis:</legend>
+                <div class="col">
+                  <label for="verticesMinPhi" class="form-label"
+                    >Min [rad]</label
+                  >
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMinPhi"
+                    value="-3.1416"
+                    min="-3.1416"
+                    max="3.1416"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesMaxPhi" class="form-label"
+                    >Max [rad]</label
+                  >
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMaxPhi"
+                    value="3.1416"
+                    min="-3.1416"
+                    max="3.1416"
+                    step="any"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesBinsPhi" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesBinsPhi"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+
+              <hr class="border my-4 opacity-50" />
+
+              <fieldset class="row">
+                <legend class="col-form-label col-2 pt-0">Time Axis:</legend>
+                <div class="col">
+                  <label for="verticesMinT" class="form-label">Min [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMinT"
+                    value="0.0"
+                    min="0.0"
+                    step="any"
+                    oninput="updateVerticesMaxTimeReq()"
+                    required
+                  />
+                </div>
+                <div class="col">
+                  <label for="verticesMaxT" class="form-label">Max [s]</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesMaxT"
+                    min="0.0"
+                    step="any"
+                  />
+                  <div class="form-text">Leave empty for end of run</div>
+                  <div class="invalid-feedback">Invalid max time</div>
+                </div>
+                <div class="col">
+                  <label for="verticesBinsT" class="form-label">Bins</label>
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="verticesBinsT"
+                    value="100"
+                    min="1"
+                    step="1"
+                    required
+                  />
+                </div>
+              </fieldset>
+            </form>
+          </div>
+
+          <div class="modal-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              data-bs-dismiss="modal"
+            >
+              Close
+            </button>
+            <button
+              type="button"
+              class="btn btn-primary"
+              id="verticesDownloadBtn"
+              onclick="verticesPlot()"
+            >
+              Download
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
     <script>
-      var var_run_number = {{ run_number }};
+      const RUN_NUMBER = {{ run_number }};
     </script>
     <script src="./assets/run_info/run_info.js"></script>
     <script
