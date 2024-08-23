@@ -27,6 +27,7 @@ mod templates;
 static PROJECT_HOME: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Parser)]
+#[command(version)]
 /// Web application for the ALPHA-g experiment
 struct Cli {
     #[command(subcommand)]
