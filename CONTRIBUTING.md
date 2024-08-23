@@ -38,3 +38,7 @@ git pull
 cargo release tag --execute
 cargo release push --execute
 ```
+
+After following these steps, please go to the GitHub releases page and manually
+rename the new release to match the tag name (see
+[this issue](https://github.com/axodotdev/cargo-dist/issues/1286)).
