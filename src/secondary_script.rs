@@ -191,7 +191,7 @@ impl SecondaryScript for ChronoboxTimestamps {
         cmd.arg(analysis_scripts_dir().join(self.to_string()))
             .arg(&self.csv)
             .arg(&self.args.board_name)
-            .arg(&self.args.channel_number.to_string())
+            .arg(self.args.channel_number.to_string())
             .arg("--output")
             .arg(&output);
         if let Some(t_bins) = self.args.t_bins {
