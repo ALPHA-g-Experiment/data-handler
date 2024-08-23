@@ -15,17 +15,30 @@ Python 3.9+,
 [`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html),
 and the `git` command.
 
-Install the application using the following commands:
+To facilitate installation, we provide pre-built binaries for some platforms.
+For example, to get the latest version of the `alpha-g-data-handler` program on
+`alphacpc04`, run:
 
-```bash
-cargo install --git https://github.com/ALPHA-g-Experiment/data-handler.git
-alpha-g-data-handler update
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/ALPHA-g-Experiment/data-handler/releases/latest/download/alpha-g-data-handler-installer.sh | sh
 ```
 
-Finally, you can start the server as (use `--help` to see all the available
-options):
+For instructions on installing from different platforms and/or specific versions
+of the package, see
+[our releases page](https://github.com/ALPHA-g-Experiment/data-handler/releases).
+
+Alternatively, you can build from source (requires
+[`cargo`](https://doc.rust-lang.org/cargo/getting-started/installation.html)):
 
 ```bash
+cargo install --locked --git https://github.com/ALPHA-g-Experiment/data-handler.git
+```
+
+After installation, you can start the server as (use `--help` to see all the
+available options):
+
+```bash
+alpha-g-data-handler update
 AG_JWT_SECRET=secret alpha-g-data-handler serve -a 0.0.0.0:8080 -d /path/to/midas/files
 ```
 
