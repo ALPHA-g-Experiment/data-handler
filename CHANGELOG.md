@@ -8,5 +8,7 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+First usable version of the data handler.
+
 <!-- next-url -->
 [Unreleased]: https://github.com/ALPHA-g-Experiment/data-handler/compare/5ab78a7...HEAD
