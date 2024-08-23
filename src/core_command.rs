@@ -97,6 +97,21 @@ pub enum CoreBin {
     Vertices,
 }
 
+impl std::fmt::Display for CoreBin {
+    // This should match the names of the binaries in the `alpha-g-analysis`
+    // package (it is used to spawn the command).
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CoreBin::ChronoboxTimestamps => write!(f, "alpha-g-chronobox-timestamps"),
+            CoreBin::InitialOdb => write!(f, "alpha-g-odb"),
+            CoreBin::FinalOdb => write!(f, "alpha-g-odb"),
+            CoreBin::Sequencer => write!(f, "alpha-g-sequencer"),
+            CoreBin::TrgScalers => write!(f, "alpha-g-trg-scalers"),
+            CoreBin::Vertices => write!(f, "alpha-g-vertices"),
+        }
+    }
+}
+
 impl CoreCmd {
     fn output_dir(self) -> PathBuf {
         directories::ProjectDirs::from("com", "ALPHA", "ALPHA-g-Data-Handler")
@@ -127,16 +142,14 @@ impl CoreCmd {
     }
 
     async fn to_command(self) -> Result<Command> {
-        let mut cmd = Command::new(PROJECT_HOME.get().unwrap().join("rust").join("bin").join(
-            match self.bin {
-                CoreBin::ChronoboxTimestamps => "alpha-g-chronobox-timestamps",
-                CoreBin::InitialOdb => "alpha-g-odb",
-                CoreBin::FinalOdb => "alpha-g-odb",
-                CoreBin::Sequencer => "alpha-g-sequencer",
-                CoreBin::TrgScalers => "alpha-g-trg-scalers",
-                CoreBin::Vertices => "alpha-g-vertices",
-            },
-        ));
+        let mut cmd = Command::new(
+            PROJECT_HOME
+                .get()
+                .unwrap()
+                .join("rust")
+                .join("bin")
+                .join(self.bin.to_string()),
+        );
         if let CoreBin::FinalOdb = self.bin {
             cmd.arg("--final");
         }

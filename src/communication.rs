@@ -132,7 +132,7 @@ async fn run_core_command(
     let response = ServerMessage {
         service: service.to_string(),
         context: context.to_string(),
-        response: ServerResponse::Text(format!("Spawned `{:?}`", cmd.bin)),
+        response: ServerResponse::Text(format!("Spawned `{}`", cmd.bin)),
     };
     let _ = tx.send(response);
 
@@ -141,7 +141,7 @@ async fn run_core_command(
             let response = ServerMessage {
                 service: service.to_string(),
                 context: context.to_string(),
-                response: ServerResponse::Text(format!("Finished running `{:?}`", cmd.bin)),
+                response: ServerResponse::Text(format!("Finished running `{}`", cmd.bin)),
             };
             let _ = tx.send(response);
             Ok(filename)
