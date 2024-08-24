@@ -1,6 +1,6 @@
 [package]
 name = "alpha-g-data-handler"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 repository = "https://github.com/ALPHA-g-Experiment/data-handler"
 publish = false

@@ -8,6 +8,8 @@ changes will be documented in this file.
 
 ## [Unreleased] - ReleaseDate
 
+## [0.1.1] - 2024-08-24
+
 ### Added
 
 - The client now displays the name of the binaries (instead of internal debug
@@ -25,5 +27,6 @@ changes will be documented in this file.
 First usable version of the data handler.
 
 <!-- next-url -->
-[Unreleased]: https://github.com/ALPHA-g-Experiment/data-handler/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ALPHA-g-Experiment/data-handler/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/ALPHA-g-Experiment/data-handler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/ALPHA-g-Experiment/data-handler/compare/5ab78a7...v0.1.0
