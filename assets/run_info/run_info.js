@@ -25,6 +25,14 @@ const ws = new WebSocket(protocol + "//" + loc.host + loc.pathname + "/../ws");
 
 ws.onopen = function () {
   document.getElementById("downloadButton").disabled = false;
+
+  // If server is running behind a reverse proxy, the WebSocket connection may
+  // be terminated after a period of inactivity. Keep the connection alive by
+  // sending a ping message every 30 seconds.
+  const pingInterval = 30 * 1000;
+  setInterval(function () {
+    ws.send(JSON.stringify({ service: "Heartbeat" }));
+  }, pingInterval);
 };
 
 // The WebSocket connection is closed when the page is unloaded. In this case,

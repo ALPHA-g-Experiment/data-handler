@@ -27,6 +27,7 @@ mod templates;
 static PROJECT_HOME: OnceLock<PathBuf> = OnceLock::new();
 
 #[derive(Parser)]
+#[command(version)]
 /// Web application for the ALPHA-g experiment
 struct Cli {
     #[command(subcommand)]
@@ -162,11 +163,26 @@ async fn run_info(
     })?;
     let odb = serde_json::from_slice::<serde_json::Value>(&contents[start_index..])
         .with_context(|| format!("failed to parse final ODB for run number `{run_number}`"))?;
-    let template = RunInfoTemplate::try_from_odb(&odb).with_context(|| {
-        format!("failed to create `RunInfo` from ODB for run number `{run_number}`")
-    })?;
 
-    Ok(template)
+    match RunInfoTemplate::try_from_odb(&odb).with_context(|| {
+        format!("failed to create `RunInfo` from ODB for run number `{run_number}`")
+    }) {
+        Ok(template) => Ok(template),
+        Err(err) => {
+            // If this conversion failed, removing the file from cache will make
+            // sure that the operation is retried next time. This is important
+            // because 99% of the times this fails is because the last file of
+            // the run is not on EOS yet.
+            // If it fails for whatever unrecoverable reason, the error message
+            // is still printed (it will still be retried, but there is no harm
+            // in that).
+            fs::remove_file(&output)
+                .await
+                .with_context(|| format!("failed to remove `{}`", output.display()))?;
+
+            Err(err.into())
+        }
+    }
 }
 
 async fn websocket_handler(
