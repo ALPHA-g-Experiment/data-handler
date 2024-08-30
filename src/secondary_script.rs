@@ -160,6 +160,43 @@ impl SecondaryScript for Sequencer {
     }
 }
 
+pub struct SpillLog {
+    pub sequencer_events_csv: PathBuf,
+    pub initial_odb_json: PathBuf,
+    pub chronobox_csv: PathBuf,
+    pub trg_scalers_csv: PathBuf,
+}
+
+impl fmt::Display for SpillLog {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "spill_log.py")
+    }
+}
+
+impl SecondaryScript for SpillLog {
+    async fn spawn_and_wait(&self, output: &str) -> Result<PathBuf> {
+        let output = temp_dir()
+            .await
+            .context("failed to create temporary directory")?
+            .join(output);
+
+        let status = Command::new(python3())
+            .arg(analysis_scripts_dir().join(self.to_string()))
+            .arg(&self.sequencer_events_csv)
+            .arg(&self.initial_odb_json)
+            .arg(&self.chronobox_csv)
+            .arg(&self.trg_scalers_csv)
+            .arg("--output")
+            .arg(&output)
+            .status()
+            .await
+            .with_context(|| format!("failed to run `{self}`"))?;
+        ensure!(status.success(), "`{self}` failed with `{status}`");
+
+        Ok(output)
+    }
+}
+
 #[derive(Clone, Debug, Deserialize)]
 pub struct ChronoboxTimestampsArgs {
     board_name: String,
