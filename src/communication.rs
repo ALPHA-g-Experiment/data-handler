@@ -28,7 +28,7 @@ pub enum ClientRequest {
     InitialOdb {
         run_number: u32,
     },
-    SequencerEvents {
+    SpillLog {
         run_number: u32,
     },
     TrgScalersCsv {
@@ -92,8 +92,8 @@ pub async fn handle_client_message(
         ClientRequest::InitialOdb { .. } => {
             handle_initial_odb(msg, tx, app_state).await;
         }
-        ClientRequest::SequencerEvents { .. } => {
-            handle_sequencer_events(msg, tx, app_state).await;
+        ClientRequest::SpillLog { .. } => {
+            handle_spill_log(msg, tx, app_state).await;
         }
         ClientRequest::TrgScalersCsv { .. } => {
             handle_trg_scalers_csv(msg, tx, app_state).await;
@@ -307,12 +307,12 @@ async fn handle_initial_odb(
     send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
-async fn handle_sequencer_events(
+async fn handle_spill_log(
     msg: ClientMessage,
     tx: mpsc::UnboundedSender<ServerMessage>,
     app_state: Arc<AppState>,
 ) {
-    let ClientRequest::SequencerEvents { run_number } = msg.request else {
+    let ClientRequest::SpillLog { run_number } = msg.request else {
         unreachable!();
     };
     let sequencer_cmd = CoreCmd {
@@ -327,7 +327,11 @@ async fn handle_sequencer_events(
         bin: CoreBin::ChronoboxTimestamps,
         run_number,
     };
-    let Ok((sequencer_csv, initial_odb_json, chronobox_csv)) = tokio::try_join!(
+    let trg_scalers_cmd = CoreCmd {
+        bin: CoreBin::TrgScalers,
+        run_number,
+    };
+    let Ok((sequencer_csv, initial_odb_json, chronobox_csv, trg_scalers_csv)) = tokio::try_join!(
         run_core_command(
             &msg.service,
             &msg.context,
@@ -348,17 +352,24 @@ async fn handle_sequencer_events(
             chronobox_cmd,
             &tx,
             app_state.clone()
-        )
+        ),
+        run_core_command(
+            &msg.service,
+            &msg.context,
+            trg_scalers_cmd,
+            &tx,
+            app_state.clone()
+        ),
     ) else {
         return;
     };
 
     let script = secondary_script::Sequencer {
         sequencer_csv,
-        initial_odb_json,
-        chronobox_csv,
+        initial_odb_json: initial_odb_json.clone(),
+        chronobox_csv: chronobox_csv.clone(),
     };
-    let Ok(output) = run_secondary_script(
+    let Ok(sequencer_events_csv) = run_secondary_script(
         &msg.service,
         &msg.context,
         script,
@@ -369,6 +380,24 @@ async fn handle_sequencer_events(
     else {
         return;
     };
+    let script = secondary_script::SpillLog {
+        sequencer_events_csv,
+        initial_odb_json,
+        chronobox_csv,
+        trg_scalers_csv,
+    };
+    let Ok(output) = run_secondary_script(
+        &msg.service,
+        &msg.context,
+        script,
+        &format!("R{run_number}_spill_log.csv"),
+        &tx,
+    )
+    .await
+    else {
+        return;
+    };
+
     send_download_jwt(&msg.service, &msg.context, &tx, output);
 }
 
