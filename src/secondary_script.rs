@@ -31,7 +31,7 @@ fn analysis_scripts_dir() -> PathBuf {
 pub(super) fn setup_analysis_scripts() -> Result<()> {
     // Only install the latest version that is semver compatible with whatever
     // was tested during development.
-    let req = VersionReq::parse("^0.1.0").unwrap();
+    let req = VersionReq::parse("^0.1.1").unwrap();
     // The analysis-scripts repo doesn't provide (so far) pre-built interpreters,
     // etc. Hence just follow the instructions in the README.
     //
