@@ -13,6 +13,7 @@ changes will be documented in this file.
 - The `Sequencer Events` CSV download was changed to a full `Spill Log` CSV.
   This contains all the information from the sequencer events, but also includes
   the counts during each spill for all Chronobox channels.
+- Download tabs now have a small spinner to indicate that processing is ongoing.
 
 ## [0.1.1] - 2024-08-24
 

@@ -66,7 +66,8 @@ ws.onmessage = function (event) {
 
 function handleDownloadResponse(msg) {
   const output = document.getElementById(msg.context);
-  if (output === null) {
+  const spinner = output.parentNode.querySelector(".spinner-border");
+  if (output === null || spinner === null) {
     return;
   }
 
@@ -74,6 +75,7 @@ function handleDownloadResponse(msg) {
     output.textContent += msg.response.Text + "\n";
   } else if (msg.response.Error) {
     output.textContent += msg.response.Error + "\n";
+    spinner.remove();
   } else if (msg.response.DownloadJWT) {
     const a = document.createElement("a");
     a.href = "./download/" + msg.response.DownloadJWT;
@@ -81,6 +83,7 @@ function handleDownloadResponse(msg) {
     a.click();
 
     output.textContent += "Done\n";
+    spinner.remove();
   }
 }
 
@@ -118,7 +121,10 @@ function newDownload(jsonMessage) {
   `;
 
   document.getElementById("downloadTabsContent").innerHTML += `
-    <div class="tab-pane fade" id="${newTabContentId}" tabindex="0">
+    <div class="tab-pane fade position-relative" id="${newTabContentId}" tabindex="0">
+	  <div
+	    class="spinner-border spinner-border-sm text-secondary position-absolute top-0 end-0 m-2"
+	  ></div>
       <pre
         class="p-3 bg-light border border-top-0"
         id="${newTabContentOutputId}"
