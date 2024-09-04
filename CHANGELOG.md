@@ -14,6 +14,11 @@ changes will be documented in this file.
   This contains all the information from the sequencer events, but also includes
   the counts during each spill for all Chronobox channels.
 - Download tabs now have a small spinner to indicate that processing is ongoing.
+- It is now possible to specify (via the `--pattern` flag) a filename pattern
+  regex for the MIDAS files given a run number. This is useful in the case that
+  there are both `*.mid` and `*.mid.lz4` files in the data directory. The
+  default pattern will match any `runXXXXXsubYYY.mid*` file. To, for example,
+  match only `*.mid` files, add a `$` anchor to the end of the default pattern.
 
 ## [0.1.1] - 2024-08-24
 
