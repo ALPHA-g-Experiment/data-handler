@@ -75,7 +75,7 @@ After=network.target
 
 [Service]
 Environment="AG_JWT_SECRET=a_random_shared_secret"
-ExecStart=/home/my_user/.cargo/bin/alpha-g-data-handler serve -a 0.0.0.0:8080 -d /path/to/midas/files
+ExecStart=/home/my_user/.cargo/bin/alpha-g-data-handler serve -a 0.0.0.0:8080 -d /path/to/midas/files -p "^run0*(?<run_number>\d+)sub\d+\.mid\.lz4$"
 WorkingDirectory=/home/my_user
 User=my_user
 Restart=always
