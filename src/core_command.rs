@@ -37,16 +37,17 @@ pub(super) fn install_core_binaries() -> Result<()> {
     Ok(())
 }
 
-// This is set (only once) at the beginning of the program based on the CLI
+// These are set (only once) at the beginning of the program based on the CLI
 // arguments.
-// Throughout the module it should be assumed to be set.
+// Throughout the module they should be assumed to be set.
 pub(super) static MIDAS_DATA_PATH: OnceLock<PathBuf> = OnceLock::new();
+pub(super) static FILENAME_PATTERN: OnceLock<regex::Regex> = OnceLock::new();
 
 // Get all the MIDAS files for a given run number.
 // If the returned value is OK, the vector is guaranteed to be non-empty.
 async fn midas_files(run_number: u32) -> Result<Vec<PathBuf>> {
     let dir = MIDAS_DATA_PATH.get().unwrap();
-    let prefix = format!("run{run_number:05}sub");
+    let re = FILENAME_PATTERN.get().unwrap();
 
     let mut files = Vec::new();
     let mut entries = fs::read_dir(dir)
@@ -57,8 +58,14 @@ async fn midas_files(run_number: u32) -> Result<Vec<PathBuf>> {
         .await
         .with_context(|| format!("failed to iterate over `{}`", dir.display()))?
     {
-        if let Some(filename) = entry.file_name().to_str() {
-            if filename.starts_with(&prefix) {
+        if let Some(n) = entry
+            .file_name()
+            .to_str()
+            .and_then(|filename| re.captures(filename))
+            .and_then(|captures| captures.name("run_number"))
+            .and_then(|n| n.as_str().parse::<u32>().ok())
+        {
+            if n == run_number {
                 files.push(entry.path());
             }
         }

@@ -46,6 +46,9 @@ enum Commands {
         /// Path to the MIDAS data directory
         #[arg(short, long, default_value = ".")]
         data_dir: std::path::PathBuf,
+        /// Filename pattern
+        #[arg(short, long, default_value = r"^run0*(?<run_number>\d+)sub\d+\.mid")]
+        pattern: regex::Regex,
     },
 }
 
@@ -97,10 +100,17 @@ async fn main() -> Result<(), anyhow::Error> {
 
             spinner.finish_and_clear();
         }
-        Commands::Serve { address, data_dir } => {
+        Commands::Serve {
+            address,
+            data_dir,
+            pattern,
+        } => {
             core_command::MIDAS_DATA_PATH
                 .set(data_dir)
                 .expect("failed to set MIDAS_DATA_PATH");
+            core_command::FILENAME_PATTERN
+                .set(pattern)
+                .expect("failed to set FILENAME_PATTERN");
 
             let app_state = Arc::new(AppState::default());
             let app = Router::new()
