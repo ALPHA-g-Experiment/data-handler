@@ -28,6 +28,9 @@ pub enum ClientRequest {
     InitialOdb {
         run_number: u32,
     },
+    FinalOdb {
+        run_number: u32,
+    },
     SpillLog {
         run_number: u32,
     },
@@ -91,6 +94,9 @@ pub async fn handle_client_message(
         }
         ClientRequest::InitialOdb { .. } => {
             handle_initial_odb(msg, tx, app_state).await;
+        }
+        ClientRequest::FinalOdb { .. } => {
+            handle_final_odb(msg, tx, app_state).await;
         }
         ClientRequest::SpillLog { .. } => {
             handle_spill_log(msg, tx, app_state).await;
@@ -299,6 +305,24 @@ async fn handle_initial_odb(
     };
     let cmd = CoreCmd {
         bin: CoreBin::InitialOdb,
+        run_number,
+    };
+    let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
+        return;
+    };
+    send_download_jwt(&msg.service, &msg.context, &tx, output);
+}
+
+async fn handle_final_odb(
+    msg: ClientMessage,
+    tx: mpsc::UnboundedSender<ServerMessage>,
+    app_state: Arc<AppState>,
+) {
+    let ClientRequest::FinalOdb { run_number } = msg.request else {
+        unreachable!();
+    };
+    let cmd = CoreCmd {
+        bin: CoreBin::FinalOdb,
         run_number,
     };
     let Ok(output) = run_core_command(&msg.service, &msg.context, cmd, &tx, app_state).await else {
