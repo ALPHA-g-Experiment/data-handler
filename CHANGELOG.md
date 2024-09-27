@@ -20,6 +20,7 @@ changes will be documented in this file.
   default pattern will match any `runXXXXXsubYYY.mid*` file. To, for example,
   match only `*.mid` files, add a `$` anchor to the end of the default pattern.
 - New websocket message to request the final ODB.
+- New websocket message to request the core sequencer CSV.
 
 ## [0.1.1] - 2024-08-24
 
